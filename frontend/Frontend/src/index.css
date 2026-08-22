@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #04080e;
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Cyber Security & Defense Glow Palette */
+.bg-soc-dark {
+  background-color: #060a10;
+}
+.bg-soc-card {
+  background-color: rgba(10, 16, 26, 0.6);
+}
+.bg-soc-border {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Glow Effects */
+.glow-teal {
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.35);
+}
+.glow-teal-lg {
+  box-shadow: 0 0 50px rgba(0, 229, 255, 0.5);
+}
+.glow-cyan {
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.25);
+}
+
+/* Glassmorphism Panels */
+.glass-soc-card {
+  background: linear-gradient(135deg, rgba(11, 17, 25, 0.9) 0%, rgba(6, 10, 16, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  transition: all 0.3s ease;
+}
+
+.glass-soc-card:hover {
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  box-shadow: 0 15px 40px -10px rgba(0, 229, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Custom Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.2);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 229, 255, 0.4);
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hidden-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Radar Sweep Animation */
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 4s linear infinite;
+}
+
+/* User Provided Custom Loader */
+.loader {
+  width: 60px;
+  height: 25px;
+  border: 2px solid #00d2c4;
+  box-sizing: border-box;
+  border-radius: 50%;
+  display: grid;
+  animation: l2 2s infinite linear;
+}
+.loader:before,
+.loader:after {
+  content: "";
+  grid-area: 1/1;
+  border: inherit;
+  border-radius: 50%;
+  animation: inherit;
+  animation-duration: 3s;
+}
+.loader:after {
+  --s: -1;
+}
+@keyframes l2 {
+  100% { transform: rotate(calc(var(--s, 1) * 1turn)); }
+}
