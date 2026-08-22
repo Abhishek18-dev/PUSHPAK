@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rf-scheduler-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5433/rfscheduler
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    com.rfscheduler.websocket: DEBUG
+    com.rfscheduler.config.WebSocketConfig: DEBUG
+    org.springframework.web.socket: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+rf:
+  security:
+    enabled: false
+    jwt-secret: default-insecure-secret-key-change-in-production-long-enough-for-hmac256
+  ml:
+    scheduler:
+      url: http://localhost:8500
+      enabled: false # Set to true to call real ML service
+      timeout-ms: 5000
+    periodicity:
+      url: http://localhost:8600
+      enabled: false # Set to true to call real ML service
+      timeout-ms: 5000
