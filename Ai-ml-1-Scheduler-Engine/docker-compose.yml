@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  ml-scheduler:
+    build: .
+    ports:
+      - "8500:8500"
+    environment:
+      - PORT=8500
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./ml:/app/ml
+      - ./tests:/app/tests
