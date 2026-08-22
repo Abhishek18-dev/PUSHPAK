@@ -1,6 +1,7 @@
 package com.rfscheduler.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import java.time.Instant;
 
 @Entity
@@ -16,12 +17,14 @@ public class ModelEntity {
     @Column(nullable = false)
     private int version = 1;
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String hyperparams;
 
     @Column(nullable = false)
     private boolean active = false;
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "metrics_json", columnDefinition = "jsonb")
     private String metricsJson;
 

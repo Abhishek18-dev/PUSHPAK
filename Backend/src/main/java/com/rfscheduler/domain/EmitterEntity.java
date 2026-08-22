@@ -1,6 +1,7 @@
 package com.rfscheduler.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import java.time.Instant;
 
 @Entity
@@ -25,6 +26,7 @@ public class EmitterEntity {
     @Column(nullable = false)
     private double priority = 1.0;
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "config_json", columnDefinition = "jsonb")
     private String configJson;
 

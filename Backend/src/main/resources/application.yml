@@ -44,7 +44,7 @@ rf:
   ml:
     scheduler:
       url: http://localhost:8500
-      enabled: false # Set to true to call real ML service
+      enabled: true # Set to true to call real ML service
       timeout-ms: 5000
     periodicity:
       url: http://localhost:8600

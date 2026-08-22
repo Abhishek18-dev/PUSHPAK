@@ -84,6 +84,26 @@ public class SimulationService {
         ReceiverConfigEntity rcfg = new ReceiverConfigEntity("rcfg_" + sim.getId(), sim.getId());
         receiverConfigRepo.save(rcfg);
 
+        // Automatically populate diverse dynamic emitters based on seed and band count
+        Random rng = new Random(seed);
+        int emitterCount = Math.max(3, Math.min(bands / 2, 6));
+        String[] behaviors = {"fixed", "periodic", "agile", "random", "intermittent"};
+        for (int i = 0; i < emitterCount; i++) {
+            String bType = behaviors[i % behaviors.length];
+            int assignedBand = rng.nextInt(bands);
+            int period = 6 + rng.nextInt(15);
+            double priority = 1.0 + (i % 3);
+            EmitterEntity ee = new EmitterEntity(
+                "emit_" + sim.getId() + "_" + i,
+                sim.getId(),
+                bType,
+                assignedBand,
+                period,
+                priority
+            );
+            emitterRepo.save(ee);
+        }
+
         return sim;
     }
 
@@ -310,6 +330,12 @@ public class SimulationService {
                 DetectionEvent event = eventOpt.get();
                 detectionEventRepo.save(new DetectionEventEntity(
                         scanEvent.getId(), event.type().name(), 0L));
+                
+                // Publish detection event to WebSocket
+                pubSub.publishEvent(simId, "detection_event", Map.of(
+                        "step", t,
+                        "band", action.nextBandId(),
+                        "type", event.type().name()));
             }
 
             // Persist scheduler decision
@@ -350,11 +376,23 @@ public class SimulationService {
 
             // Publish WS events every 10 steps (coalescing)
             if (t % 10 == 0) {
+                // Prepare band occupancy map
+                Map<String, Boolean> bandOccupancy = new HashMap<>();
+                for (Signal sig : spectrum.getActiveSignals()) {
+                    bandOccupancy.put(String.valueOf(sig.bandId()), true);
+                }
+
+                pubSub.publishEvent(simId, "spectrum_update", Map.of(
+                        "band_occupancy", bandOccupancy,
+                        "tuned_bands", receiver.getTunedBands()));
+
                 pubSub.publishEvent(simId, "metrics_update", Map.of(
                         "step", t,
                         "reward", reward,
                         "pd", metricsEngine.getSummary().pd(),
-                        "pfa", metricsEngine.getSummary().pfa()));
+                        "pfa", metricsEngine.getSummary().pfa(),
+                        "ait", metricsEngine.getSummary().ait(),
+                        "scan_efficiency", metricsEngine.getSummary().scanEfficiency()));
             }
 
             // Publish scan decision event
@@ -405,11 +443,29 @@ public class SimulationService {
                     e.getBand(), e.getPriority(), e.getPeriod(), behavior));
         }
 
-        // If no emitters configured, create defaults for testing
+        // If no emitters configured in DB, dynamically generate them based on simulation seed and band count
         if (emitters.isEmpty()) {
-            emitters.add(new Emitter("emit_default_1", BehaviorClass.FIXED, 0, 1.0, 10, new FixedBehavior()));
-            emitters.add(new Emitter("emit_default_2", BehaviorClass.PERIODIC, 3, 1.0, 20, new PeriodicBehavior(5)));
-            emitters.add(new Emitter("emit_default_3", BehaviorClass.RANDOM, 5, 1.0, 10, new RandomBehavior(seed, allBands, 0.3)));
+            Random rng = new Random(seed);
+            int emitterCount = Math.max(3, Math.min(numBands / 2, 6));
+            for (int i = 0; i < emitterCount; i++) {
+                int band = Math.abs((int) ((seed * 7 + i * 5) % numBands));
+                int period = 6 + (i * 4);
+                EmitterBehavior behavior = switch (i % 5) {
+                    case 0 -> new FixedBehavior();
+                    case 1 -> new PeriodicBehavior(Math.max(1, period / 2));
+                    case 2 -> new AgileBehavior(seed + i, allBands, 6);
+                    case 3 -> new RandomBehavior(seed + i, allBands, 0.35);
+                    default -> new IntermittentBehavior(seed + i, 0.1, 0.2);
+                };
+                BehaviorClass bc = switch (i % 5) {
+                    case 0 -> BehaviorClass.FIXED;
+                    case 1 -> BehaviorClass.PERIODIC;
+                    case 2 -> BehaviorClass.AGILE;
+                    case 3 -> BehaviorClass.RANDOM;
+                    default -> BehaviorClass.INTERMITTENT;
+                };
+                emitters.add(new Emitter("emit_seed_" + i, bc, band, 1.0 + (i % 3), period, behavior));
+            }
         }
 
         return emitters;

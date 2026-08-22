@@ -1,6 +1,7 @@
 package com.rfscheduler.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import java.time.Instant;
 
 @Entity
@@ -23,6 +24,7 @@ public class ExperimentRunEntity {
     @Column(nullable = false)
     private String status = "pending";
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "metrics_json", columnDefinition = "jsonb")
     private String metricsJson;
 

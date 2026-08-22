@@ -1,6 +1,7 @@
 package com.rfscheduler.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "scheduler_decisions")
@@ -13,9 +14,11 @@ public class SchedulerDecisionEntity {
     @Column(name = "scan_event_id", nullable = false)
     private Long scanEventId;
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "state_vector", columnDefinition = "jsonb")
     private String stateVector;
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private String action;
 

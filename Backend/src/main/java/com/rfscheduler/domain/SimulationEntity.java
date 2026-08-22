@@ -1,6 +1,7 @@
 package com.rfscheduler.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import java.time.Instant;
 
 @Entity
@@ -34,6 +35,7 @@ public class SimulationEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "checkpoint_data", columnDefinition = "jsonb")
     private String checkpointData;
 

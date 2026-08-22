@@ -71,3 +71,18 @@ buildNumber.properties
 
 # Documentation
 *.pdf
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python / ML
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+

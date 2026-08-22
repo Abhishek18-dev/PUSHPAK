@@ -1,6 +1,7 @@
 package com.rfscheduler.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import java.time.Instant;
 
 @Entity
@@ -15,12 +16,14 @@ public class ExperimentEntity {
     @Column(nullable = false, length = 2)
     private String scenario;
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private String policies = "[\"baseline\"]";
 
     @Column(nullable = false)
     private String status = "created";
 
+    @JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "config_json", columnDefinition = "jsonb")
     private String configJson;
 
