@@ -33,13 +33,18 @@ public class EmitterController {
 
     @PostMapping
     public ResponseEntity<BaseResponse<Map<String, Object>>> createEmitter(
-            @Valid @RequestBody EmitterCreateRequest request) {
+            @Valid @RequestBody(required = false) EmitterCreateRequest request) {
         String id = "emit_" + UUID.randomUUID().toString().substring(0, 6);
-        String behaviorClass = request.behaviorClass() != null ? request.behaviorClass() : "fixed";
-        double priority = request.priority() != 0.0 ? request.priority() : 1.0;
+        String simId = (request != null && request.simulationId() != null && !request.simulationId().isBlank())
+                ? request.simulationId() : "sim_default";
+        String behaviorClass = (request != null && request.behaviorClass() != null && !request.behaviorClass().isBlank())
+                ? request.behaviorClass() : "fixed";
+        int band = (request != null && request.band() != null) ? request.band() : 0;
+        int period = (request != null && request.period() != null) ? request.period() : 10;
+        double priority = (request != null && request.priority() != null && request.priority() > 0)
+                ? request.priority() : 1.0;
 
-        EmitterEntity emitter = new EmitterEntity(id, request.simulationId(), behaviorClass, 
-                request.band(), request.period(), priority);
+        EmitterEntity emitter = new EmitterEntity(id, simId, behaviorClass, band, period, priority);
         emitterRepo.save(emitter);
 
         return ResponseEntity.status(HttpStatus.CREATED)

@@ -72,7 +72,7 @@ export const EmittersReceiver: React.FC = () => {
       simulation_id: activeSimulationId,
       band,
       behavior_class: behaviorClass,
-      period: behaviorClass === 'periodic' ? period : undefined,
+      period: behaviorClass === 'periodic' ? period : 0,
       priority,
     });
     if (res.success) {
