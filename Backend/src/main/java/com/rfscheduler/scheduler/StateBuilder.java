@@ -76,6 +76,9 @@ public class StateBuilder {
             PeriodicityClient.PeriodicityPrediction prediction = 
                     predictions.getOrDefault(bandId, PeriodicityClient.PeriodicityPrediction.DEFAULT);
 
+            // Tuning cost: how many bands away from current position
+            int tuningCost = Math.abs(bandId - currentTunedBand);
+
             // Clamp features to contract limits [0.0, 1.0] and >= 0
             double clampedEwma = Math.max(0.0, Math.min(1.0, ewma));
             double clampedPhase = Math.max(0.0, Math.min(1.0, prediction.phase()));
