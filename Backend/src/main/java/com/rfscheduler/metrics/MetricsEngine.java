@@ -28,9 +28,14 @@ public class MetricsEngine {
     }
 
     public void recordStep(Optional<DetectionEvent> eventOpt, double reward, long latencyMs, int scannedBandId, boolean isHighPriority) {
+        recordStep(eventOpt, reward, latencyMs, scannedBandId, isHighPriority, 0L);
+    }
+
+    public void recordStep(Optional<DetectionEvent> eventOpt, double reward, long latencyMs, int scannedBandId, boolean isHighPriority, long unobservedActiveSignalsCount) {
         totalSteps++;
         cumulativeReward += reward;
         uniqueBandsScanned.add(scannedBandId);
+        totalFn += unobservedActiveSignalsCount;
         
         if (eventOpt.isPresent()) {
             DetectionEvent event = eventOpt.get();

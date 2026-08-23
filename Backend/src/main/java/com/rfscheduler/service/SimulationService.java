@@ -322,8 +322,11 @@ public class SimulationService {
             }
 
             // 8. metrics.record(t, action, observation, event, reward)
+            long unobservedActiveSignals = spectrum.getActiveSignals().stream()
+                    .filter(s -> s.bandId() != action.nextBandId())
+                    .count();
             long latencyMs = Math.max(1L, (long) (rcfg.tuningDelayMs() + (eventOpt.isPresent() && eventOpt.get().type() == DetectionType.TP ? 1 : 2)));
-            metricsEngine.recordStep(eventOpt, reward, latencyMs, action.nextBandId(), isHighPriority);
+            metricsEngine.recordStep(eventOpt, reward, latencyMs, action.nextBandId(), isHighPriority, unobservedActiveSignals);
 
             // 9. scheduler.learn(state, action, reward) — for ML policies
             if (!"baseline".equals(policyType) && decisionId != null) {
