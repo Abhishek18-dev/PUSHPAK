@@ -86,6 +86,10 @@ export const api = {
             method: 'POST',
             body: JSON.stringify(data),
           }),
+    list: (simulationId?: string): Promise<StandardEnvelope<Emitter[]>> =>
+      (window as any).__mockMode__
+        ? (mockApi.emitters.list() as any)
+        : request<Emitter[]>(`/emitters${simulationId ? `?simulation_id=${simulationId}` : ''}`),
     get: (id: string): Promise<StandardEnvelope<Emitter>> =>
       (window as any).__mockMode__
         ? (mockApi.emitters.get(id) as any)

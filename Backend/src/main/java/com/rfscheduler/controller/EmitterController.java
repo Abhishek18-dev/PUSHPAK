@@ -51,6 +51,18 @@ public class EmitterController {
                 .body(BaseResponse.success(toMap(emitter), reqId()));
     }
 
+    @GetMapping
+    public ResponseEntity<BaseResponse<List<Map<String, Object>>>> listEmitters(
+            @RequestParam(name = "simulation_id", required = false) String simulationId) {
+        List<EmitterEntity> list = (simulationId != null && !simulationId.isBlank())
+                ? emitterRepo.findBySimulationId(simulationId)
+                : emitterRepo.findAll();
+        List<Map<String, Object>> result = list.stream()
+                .map(this::toMap)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(BaseResponse.success(result, reqId()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse<Map<String, Object>>> getEmitter(@PathVariable String id) {
         EmitterEntity emitter = emitterRepo.findById(id)

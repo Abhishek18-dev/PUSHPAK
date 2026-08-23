@@ -264,15 +264,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   fetchEmitters: async () => {
-    // Emitters are typically scoped to a simulation, but standard CRUD might fetch lists
-    // Let's assume list of emitters can be simulated or is loaded via config if needed.
-    // For test harness, let's keep list in state.
+    const { activeSimulationId } = get();
+    if (!activeSimulationId) return;
+    const res = await api.simulations.get(activeSimulationId);
+    if (res.success && res.data && (res.data as any).emitters) {
+      set({ emitters: (res.data as any).emitters });
+    } else {
+      const listRes = await api.emitters.list(activeSimulationId);
+      if (listRes.success && listRes.data) {
+        set({ emitters: listRes.data });
+      }
+    }
   },
 
   createEmitter: async (data) => {
     const res = await api.emitters.create(data);
-    if (res.success) {
-      // Reload emitters or active simulation details if needed
+    if (res.success && res.data) {
+      const newEmitter = res.data as Emitter;
+      set((state) => ({ emitters: [...state.emitters, newEmitter] }));
       return true;
     } else {
       set({ errorMsg: res.error?.message || 'Failed to create emitter' });
@@ -282,7 +291,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteEmitter: async (id) => {
     const res = await api.emitters.delete(id);
-    if (!res.success) {
+    if (res.success) {
+      set((state) => ({ emitters: state.emitters.filter(e => e.id !== id) }));
+    } else {
       set({ errorMsg: res.error?.message || 'Failed to delete emitter' });
     }
   },

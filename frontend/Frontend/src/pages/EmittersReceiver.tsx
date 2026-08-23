@@ -21,14 +21,13 @@ import { api } from '../services/api';
 import type { BehaviorClass } from '../types';
 
 export const EmittersReceiver: React.FC = () => {
-  const { activeSimulationId, errorMsg } = useAppStore();
+  const { activeSimulationId, errorMsg, emitters, fetchEmitters, createEmitter, deleteEmitter } = useAppStore();
 
   // Emitter CRUD States
   const [behaviorClass, setBehaviorClass] = useState<BehaviorClass>('fixed');
   const [band, setBand] = useState(0);
   const [period, setPeriod] = useState(10);
   const [priority, setPriority] = useState(1);
-  const [emitters, setEmitters] = useState<any[]>([]);
 
   // Receiver Config States
   const [bandwidthK, setBandwidthK] = useState(2);
@@ -38,14 +37,6 @@ export const EmittersReceiver: React.FC = () => {
 
   // Scan states
   const [rawScanResult, setRawScanResult] = useState<any>(null);
-
-  const fetchSimulationEmitters = async () => {
-    if (!activeSimulationId) return;
-    const res = await api.simulations.get(activeSimulationId);
-    if (res.success && res.data && res.data.emitters) {
-      setEmitters(res.data.emitters);
-    }
-  };
 
   const loadReceiverConfig = async () => {
     const res = await api.receiver.getStatus();
@@ -58,7 +49,7 @@ export const EmittersReceiver: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSimulationEmitters();
+    fetchEmitters();
     loadReceiverConfig();
   }, [activeSimulationId]);
 
@@ -68,30 +59,26 @@ export const EmittersReceiver: React.FC = () => {
       toast.error('Activate a simulation sector first.');
       return;
     }
-    const res = await api.emitters.create({
+    const success = await createEmitter({
       simulation_id: activeSimulationId,
       band,
       behavior_class: behaviorClass,
       period: behaviorClass === 'periodic' ? period : 0,
       priority,
     });
-    if (res.success) {
+    if (success) {
       toast.success('Tactical emitter spawned!');
-      fetchSimulationEmitters();
+      fetchEmitters();
     } else {
-      toast.error(`Failed: ${res.error?.message}`);
+      toast.error('Failed to spawn emitter.');
     }
   };
 
   const handleDeleteEmitter = async (emitterId: string) => {
     if (!activeSimulationId) return;
-    const res = await api.emitters.delete(emitterId);
-    if (res.success) {
-      toast.success('Emitter removed.');
-      fetchSimulationEmitters();
-    } else {
-      toast.error(`Delete failed: ${res.error?.message}`);
-    }
+    await deleteEmitter(emitterId);
+    toast.success('Emitter removed.');
+    fetchEmitters();
   };
 
   const handleUpdateReceiver = async (e: React.FormEvent) => {

@@ -102,6 +102,13 @@ export const mockApi = {
       emitters[data.simulation_id].push(newEmit);
       return { success: true, data: newEmit, requestId: uuid('req') };
     },
+    list: async (simulationId?: string) => {
+      if (simulationId && emitters[simulationId]) {
+        return { success: true, data: emitters[simulationId], requestId: uuid('req') };
+      }
+      const all = Object.values(emitters).flat();
+      return { success: true, data: all, requestId: uuid('req') };
+    },
     get: async (id: string) => {
       for (const simId in emitters) {
         const found = emitters[simId].find(e => e.id === id);

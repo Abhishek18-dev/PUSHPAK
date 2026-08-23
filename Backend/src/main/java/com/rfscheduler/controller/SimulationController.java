@@ -1,10 +1,12 @@
 package com.rfscheduler.controller;
 
+import com.rfscheduler.domain.EmitterEntity;
 import com.rfscheduler.domain.SimulationEntity;
 import com.rfscheduler.dto.BaseResponse;
 import com.rfscheduler.dto.SimulationCreateRequest;
 import com.rfscheduler.dto.SimulationCreateResponse;
 import com.rfscheduler.dto.SimulationUpdateRequest;
+import com.rfscheduler.repository.EmitterRepository;
 import com.rfscheduler.service.SimulationService;
 import com.rfscheduler.util.AuditLogger;
 import jakarta.validation.Valid;
@@ -20,10 +22,12 @@ import java.util.stream.Collectors;
 public class SimulationController {
 
     private final SimulationService simulationService;
+    private final EmitterRepository emitterRepo;
     private final AuditLogger auditLogger;
 
-    public SimulationController(SimulationService simulationService, AuditLogger auditLogger) {
+    public SimulationController(SimulationService simulationService, EmitterRepository emitterRepo, AuditLogger auditLogger) {
         this.simulationService = simulationService;
+        this.emitterRepo = emitterRepo;
         this.auditLogger = auditLogger;
     }
 
@@ -51,7 +55,13 @@ public class SimulationController {
 
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse<Map<String, Object>>> getSimulation(@PathVariable String id) {
-        return ResponseEntity.ok(BaseResponse.success(toMap(simulationService.get(id)), reqId()));
+        SimulationEntity sim = simulationService.get(id);
+        Map<String, Object> map = toMap(sim);
+        List<Map<String, Object>> emitters = emitterRepo.findBySimulationId(id).stream()
+                .map(this::emitterToMap)
+                .collect(Collectors.toList());
+        map.put("emitters", emitters);
+        return ResponseEntity.ok(BaseResponse.success(map, reqId()));
     }
 
     @PutMapping("/{id}")
@@ -105,6 +115,17 @@ public class SimulationController {
         map.put("seed", sim.getSeed());
         map.put("current_step", sim.getCurrentStep());
         map.put("created_at", sim.getCreatedAt() != null ? sim.getCreatedAt().toString() : java.time.Instant.now().toString());
+        return map;
+    }
+
+    private Map<String, Object> emitterToMap(EmitterEntity e) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", e.getId());
+        map.put("simulation_id", e.getSimulationId());
+        map.put("behavior_class", e.getBehaviorClass());
+        map.put("band", e.getBand());
+        map.put("period", e.getPeriod());
+        map.put("priority", e.getPriority());
         return map;
     }
 }
