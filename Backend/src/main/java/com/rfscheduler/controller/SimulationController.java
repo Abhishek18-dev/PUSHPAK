@@ -98,13 +98,13 @@ public class SimulationController {
     private Map<String, Object> toMap(SimulationEntity sim) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", sim.getId());
-        map.put("name", sim.getName());
-        map.put("status", sim.getStatus());
+        map.put("name", sim.getName() != null ? sim.getName() : "Simulation " + sim.getId());
+        map.put("status", sim.getStatus() != null ? sim.getStatus() : "draft");
         map.put("bands", sim.getBands());
         map.put("duration_steps", sim.getDurationSteps());
         map.put("seed", sim.getSeed());
         map.put("current_step", sim.getCurrentStep());
-        map.put("created_at", sim.getCreatedAt().toString());
+        map.put("created_at", sim.getCreatedAt() != null ? sim.getCreatedAt().toString() : java.time.Instant.now().toString());
         return map;
     }
 }

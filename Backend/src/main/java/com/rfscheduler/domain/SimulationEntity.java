@@ -47,6 +47,10 @@ public class SimulationEntity {
         this.seed = seed;
         this.bands = bands;
         this.durationSteps = durationSteps;
+        this.status = "draft";
+        this.currentStep = 0;
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
     }
 
     // Getters and setters

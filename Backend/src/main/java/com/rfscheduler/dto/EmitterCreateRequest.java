@@ -11,6 +11,6 @@ public record EmitterCreateRequest(
     @NotBlank @JsonProperty("simulation_id") String simulationId,
     @JsonProperty("behavior_class") String behaviorClass,
     @Min(0) int band,
-    @Positive int period,
+    @Min(0) int period,
     @Min(0) double priority
 ) {}

@@ -27,7 +27,13 @@ public class ReceiverController {
     }
 
     @PostMapping("/scan")
-    public ResponseEntity<BaseResponse<Map<String, Object>>> manualScan(@RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(BaseResponse.success(Map.of("valid", true, "signals_present", List.of(), "band_id", request.getOrDefault("band_id", 1)), reqId()));
+    public ResponseEntity<BaseResponse<Map<String, Object>>> manualScan(@RequestBody(required = false) Map<String, Object> request) {
+        Object bandId = (request != null && request.containsKey("band_id") && request.get("band_id") != null)
+                ? request.get("band_id") : 1;
+        Map<String, Object> resp = new java.util.LinkedHashMap<>();
+        resp.put("valid", true);
+        resp.put("signals_present", List.of());
+        resp.put("band_id", bandId);
+        return ResponseEntity.ok(BaseResponse.success(resp, reqId()));
     }
 }
