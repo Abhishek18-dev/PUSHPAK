@@ -43,8 +43,9 @@ export default function Radar({ size = 'large' }: RadarProps) {
         const typeStr = (e.behavior_class || 'periodic').toLowerCase().replace('behavior_', '') as any;
         const isActive = Boolean(bandOccupancy[band]);
         const isTuned = tunedBands.includes(band);
+        const uniqueId = e.id ? `EMIT-${e.id.slice(-4).toUpperCase()}` : `EMIT-${band < 10 ? '0' + band : band}-${idx + 1}`;
         return {
-          id: `EMIT-${band < 10 ? '0' + band : band}`,
+          id: uniqueId,
           angle,
           distance,
           band,
@@ -114,14 +115,14 @@ export default function Radar({ size = 'large' }: RadarProps) {
         </div>
 
         {/* Target Blips on Radar Plane */}
-        {targets.map((t) => {
+        {targets.map((t, idx) => {
           const rad = (t.angle - 90) * (Math.PI / 180);
           const x = 50 + (t.distance / 2) * Math.cos(rad);
           const y = 50 + (t.distance / 2) * Math.sin(rad);
 
           return (
             <div
-              key={t.id}
+              key={`${t.id}-${t.band}-${idx}`}
               onClick={() => setSelectedTarget(t)}
               className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-20"
               style={{ left: `${x}%`, top: `${y}%` }}

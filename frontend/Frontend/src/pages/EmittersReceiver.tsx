@@ -21,7 +21,17 @@ import { api } from '../services/api';
 import type { BehaviorClass } from '../types';
 
 export const EmittersReceiver: React.FC = () => {
-  const { activeSimulationId, errorMsg, emitters, fetchEmitters, createEmitter, deleteEmitter } = useAppStore();
+  const { 
+    activeSimulationId, 
+    errorMsg, 
+    emitters, 
+    fetchEmitters, 
+    createEmitter, 
+    deleteEmitter,
+    receiverConfig,
+    fetchReceiverConfig,
+    updateReceiverConfig,
+  } = useAppStore();
 
   // Emitter CRUD States
   const [behaviorClass, setBehaviorClass] = useState<BehaviorClass>('fixed');
@@ -30,28 +40,27 @@ export const EmittersReceiver: React.FC = () => {
   const [priority, setPriority] = useState(1);
 
   // Receiver Config States
-  const [bandwidthK, setBandwidthK] = useState(2);
-  const [dwellMs, setDwellMs] = useState(10);
-  const [tuningDelay, setTuningDelay] = useState(5);
-  const [threshold, setThreshold] = useState(15.0);
+  const [bandwidthK, setBandwidthK] = useState(receiverConfig?.bandwidth_k || 2);
+  const [dwellMs, setDwellMs] = useState(receiverConfig?.dwell_ms || 10);
+  const [tuningDelay, setTuningDelay] = useState(receiverConfig?.tuning_delay || 5);
+  const [threshold, setThreshold] = useState(receiverConfig?.threshold || 15.0);
 
   // Scan states
   const [rawScanResult, setRawScanResult] = useState<any>(null);
 
-  const loadReceiverConfig = async () => {
-    const res = await api.receiver.getStatus();
-    if (res.success && res.data) {
-      setBandwidthK(res.data.bandwidth_k || 2);
-      setDwellMs(res.data.dwell_ms || 10);
-      setTuningDelay(res.data.tuning_delay || 5);
-      setThreshold(res.data.threshold || 15.0);
-    }
-  };
-
   useEffect(() => {
     fetchEmitters();
-    loadReceiverConfig();
+    fetchReceiverConfig();
   }, [activeSimulationId]);
+
+  useEffect(() => {
+    if (receiverConfig) {
+      setBandwidthK(receiverConfig.bandwidth_k || 2);
+      setDwellMs(receiverConfig.dwell_ms || 10);
+      setTuningDelay(receiverConfig.tuning_delay || 5);
+      setThreshold(receiverConfig.threshold || 15.0);
+    }
+  }, [receiverConfig]);
 
   const handleCreateEmitter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,16 +92,16 @@ export const EmittersReceiver: React.FC = () => {
 
   const handleUpdateReceiver = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await api.receiver.updateConfig({
+    const success = await updateReceiverConfig({
       bandwidth_k: bandwidthK,
       dwell_ms: dwellMs,
       tuning_delay: tuningDelay,
       threshold,
     });
-    if (res.success) {
-      toast.success('Receiver hardware parameters committed!');
+    if (success) {
+      toast.success(`Receiver dwell time updated to ${dwellMs} ms!`);
     } else {
-      toast.error(`Update failed: ${res.error?.message}`);
+      toast.error('Failed to update receiver configuration');
     }
   };
 

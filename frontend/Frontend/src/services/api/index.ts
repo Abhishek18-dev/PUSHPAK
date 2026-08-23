@@ -109,11 +109,11 @@ export const api = {
           }),
   },
   receiver: {
-    getStatus: (): Promise<StandardEnvelope<any>> =>
+    getStatus: (simulationId?: string): Promise<StandardEnvelope<any>> =>
       (window as any).__mockMode__
         ? (mockApi.receiver.getStatus() as any)
-        : request<any>('/receiver/status'),
-    updateConfig: (data: { bandwidth_k: number; dwell_ms: number; tuning_delay: number; threshold: number }): Promise<StandardEnvelope<any>> =>
+        : request<any>(simulationId ? `/receiver/status?simulationId=${simulationId}` : '/receiver/status'),
+    updateConfig: (data: { simulation_id?: string; bandwidth_k?: number; dwell_ms?: number; tuning_delay?: number; threshold?: number }): Promise<StandardEnvelope<any>> =>
       (window as any).__mockMode__
         ? (mockApi.receiver.updateConfig(data) as any)
         : request<any>('/receiver/config', {

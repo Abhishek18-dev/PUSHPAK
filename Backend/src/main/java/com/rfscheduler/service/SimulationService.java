@@ -392,18 +392,19 @@ public class SimulationService {
                 }
             }
 
-            // Publish WS events every 10 steps (coalescing)
-            if (t % 10 == 0) {
-                // Prepare band occupancy map
-                Map<String, Boolean> bandOccupancy = new HashMap<>();
-                for (Signal sig : spectrum.getActiveSignals()) {
-                    bandOccupancy.put(String.valueOf(sig.bandId()), true);
-                }
+            // Prepare band occupancy map
+            Map<String, Boolean> bandOccupancy = new HashMap<>();
+            for (Signal sig : spectrum.getActiveSignals()) {
+                bandOccupancy.put(String.valueOf(sig.bandId()), true);
+            }
 
-                pubSub.publishEvent(simId, "spectrum_update", Map.of(
-                        "band_occupancy", bandOccupancy,
-                        "tuned_bands", receiver.getTunedBands()));
+            // Publish spectrum_update every step so UI Spectrum Analyzer follows the receiver in real time
+            pubSub.publishEvent(simId, "spectrum_update", Map.of(
+                    "band_occupancy", bandOccupancy,
+                    "tuned_bands", receiver.getTunedBands()));
 
+            // Publish metrics every 5 steps
+            if (t % 5 == 0) {
                 Map<String, Object> metricsPayload = Map.of(
                         "step", t,
                         "reward", reward,

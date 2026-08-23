@@ -40,7 +40,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
     activeSimulation, activeSimulationId, liveMetrics, detections, decisionHistory, 
     updateSimulationStatus, simulations, emitters, experiments,
     bandOccupancy, models, trainingProgress, wsState, wsLogs,
-    tunedBands, latestDecision,
+    tunedBands, latestDecision, receiverConfig, fetchReceiverConfig,
     fetchSimulations, fetchModels, fetchExperiments, setActiveSimulation,
     createSimulation, activePolicy, setActivePolicy
   } = useAppStore();
@@ -105,6 +105,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
     fetchSimulations();
     fetchModels();
     fetchExperiments();
+    fetchReceiverConfig();
   }, []);
 
   // Poll periodicity ML service health & prediction
@@ -650,19 +651,19 @@ export function Dashboard({ onLogout }: DashboardProps) {
                 <div className="grid grid-cols-2 gap-2.5 text-[10px] font-mono">
                   <div className="p-2.5 bento-tile">
                     <span className="text-slate-400 block text-[8px]">Bandwidth (K)</span>
-                    <strong className="text-white text-xs">2 Bands</strong>
+                    <strong className="text-white text-xs">{receiverConfig?.bandwidth_k || 2} Bands</strong>
                   </div>
                   <div className="p-2.5 bento-tile">
                     <span className="text-slate-400 block text-[8px]">Dwell Time</span>
-                    <strong className="text-green-400 text-xs">10 ms</strong>
+                    <strong className="text-green-400 text-xs">{receiverConfig?.dwell_ms || 10} ms</strong>
                   </div>
                   <div className="p-2.5 bento-tile">
                     <span className="text-slate-400 block text-[8px]">Tuning Slew</span>
-                    <strong className="text-white text-xs">5 ms</strong>
+                    <strong className="text-white text-xs">{receiverConfig?.tuning_delay || 5} ms</strong>
                   </div>
                   <div className="p-2.5 bento-tile">
                     <span className="text-slate-400 block text-[8px]">Noise Floor</span>
-                    <strong className="text-amber-300 text-xs">-95 dBm</strong>
+                    <strong className="text-amber-300 text-xs">-{receiverConfig?.threshold ? (80 + Number(receiverConfig.threshold)).toFixed(0) : 95} dBm</strong>
                   </div>
                 </div>
               </div>

@@ -30,6 +30,12 @@ interface AppState {
   models: ModelMetadata[];
   experiments: Experiment[];
   activeResults: ExperimentResults | null;
+  receiverConfig: {
+    bandwidth_k: number;
+    dwell_ms: number;
+    tuning_delay: number;
+    threshold: number;
+  };
 
   // Active Scheduler Policy
   activePolicy: PolicyType;
@@ -51,6 +57,8 @@ interface AppState {
   fetchEmitters: () => Promise<void>;
   createEmitter: (data: any) => Promise<boolean>;
   deleteEmitter: (id: string) => Promise<void>;
+  fetchReceiverConfig: () => Promise<void>;
+  updateReceiverConfig: (config: { bandwidth_k?: number; dwell_ms?: number; tuning_delay?: number; threshold?: number }) => Promise<boolean>;
   
   // Models & Experiments
   fetchModels: () => Promise<void>;
@@ -83,6 +91,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   models: [],
   experiments: [],
   activeResults: null,
+  receiverConfig: {
+    bandwidth_k: 2,
+    dwell_ms: 10,
+    tuning_delay: 5,
+    threshold: 15.0,
+  },
 
   fetchSimulations: async () => {
     set({ loading: true, errorMsg: null });
@@ -214,6 +228,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
       set(state => ({
         latestDecision: decision as any,
+        tunedBands: [data.band],
         decisionHistory: [decision as any, ...state.decisionHistory].slice(0, 50),
       }));
     });
@@ -319,5 +334,43 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (res.success && res.data) {
       set({ activeResults: res.data });
     }
+  },
+
+  fetchReceiverConfig: async () => {
+    const activeId = get().activeSimulationId;
+    const res = await api.receiver.getStatus(activeId || undefined);
+    if (res.success && res.data) {
+      set({
+        receiverConfig: {
+          bandwidth_k: res.data.bandwidth_k || 2,
+          dwell_ms: res.data.dwell_ms || 10,
+          tuning_delay: res.data.tuning_delay || 5,
+          threshold: res.data.threshold || 15.0,
+        }
+      });
+    }
+  },
+
+  updateReceiverConfig: async (config) => {
+    const activeId = get().activeSimulationId;
+    const current = get().receiverConfig;
+    const updated = {
+      ...current,
+      ...config,
+      simulation_id: activeId || undefined,
+    };
+    const res = await api.receiver.updateConfig(updated as any);
+    if (res.success) {
+      set({
+        receiverConfig: {
+          bandwidth_k: updated.bandwidth_k,
+          dwell_ms: updated.dwell_ms,
+          tuning_delay: updated.tuning_delay,
+          threshold: updated.threshold,
+        }
+      });
+      return true;
+    }
+    return false;
   }
 }));

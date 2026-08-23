@@ -212,11 +212,15 @@ export const mockApi = {
         data: { pd: 0.88, pfa: 0.02, ait: 3.4, latency: 12.5, hpdr: 0.91 },
         requestId: uuid('req')
       };
+    },
+    getMetadata: async (id: string) => {
+      const model = models.find(m => m.id === id) || models[0];
+      return { success: true, data: model, requestId: uuid('req') };
     }
   },
   experiments: {
     create: async (data: any) => {
-      const newExp = { id: uuid('exp'), ...data, status: 'completed' as const };
+      const newExp = typeof data === 'string' ? { id: uuid('exp'), name: data, status: 'draft' as const } : { id: uuid('exp'), ...data, status: 'draft' as const };
       experiments.push(newExp);
       return { success: true, data: newExp, requestId: uuid('req') };
     },
@@ -224,29 +228,53 @@ export const mockApi = {
       return { success: true, data: experiments, requestId: uuid('req') };
     },
     get: async (id: string) => {
-      const found = experiments.find(e => e.id === id);
-      return { success: true, data: found, requestId: uuid('req') };
+      const exp = experiments.find(e => e.id === id) || experiments[0];
+      return { success: true, data: exp, requestId: uuid('req') };
     },
-    run: async (_id: string) => {
-      return { success: true, data: {}, requestId: uuid('req') };
+    run: async (id: string) => {
+      const exp = experiments.find(e => e.id === id);
+      if (exp) exp.status = 'running';
+      return { success: true, data: { status: 'running' }, requestId: uuid('req') };
     },
-    stop: async (_id: string) => {
+    stop: async (id: string) => {
+      const exp = experiments.find(e => e.id === id);
+      if (exp) exp.status = 'completed';
       return { success: true, data: {}, requestId: uuid('req') };
     },
     getResults: async (id: string) => {
-      const exp = experiments.find(e => e.id === id);
-      const results: Record<string, any> = {};
-      exp?.policies.forEach(p => {
-        results[p] = { pd: 0.75 + Math.random() * 0.2, pfa: Math.random() * 0.05, latency: 5 + Math.random() * 10 };
-      });
-      return { success: true, data: { experiment_id: id, results }, requestId: uuid('req') };
+      return {
+        success: true,
+        data: {
+          experiment_id: id,
+          results: {
+            baseline: { pd: 0.492, pfa: 0.04, latency_ms: 28.5, ait_ms: 28.5, score: 49.2 },
+            bandit: { pd: 0.885, pfa: 0.02, latency_ms: 10.2, ait_ms: 10.2, score: 88.5 },
+            q_learning: { pd: 0.912, pfa: 0.015, latency_ms: 7.8, ait_ms: 7.8, score: 91.2 },
+            dqn: { pd: 0.941, pfa: 0.01, latency_ms: 5.9, ait_ms: 5.9, score: 94.1 }
+          }
+        },
+        requestId: uuid('req')
+      };
     }
   },
   metrics: {
     getLive: async (simulationId: string) => {
+      const store = (window as any).__store__;
+      const policy = store?.getState()?.activePolicy || 'baseline';
+      const isBaseline = policy === 'baseline';
+
       return {
         success: true,
-        data: { simulation_id: simulationId, step: 450, reward: 8.75, pd: 0.86, pfa: 0.03, latency: 8.2, ait: 2.1, scan_efficiency: 0.75 },
+        data: {
+          simulation_id: simulationId,
+          step: store?.getState()?.liveMetrics?.step ?? 342,
+          reward: isBaseline ? 3.2 : 9.4,
+          pd: isBaseline ? 0.492 : (policy === 'bandit' ? 0.885 : policy === 'q_learning' ? 0.912 : 0.941),
+          pfa: isBaseline ? 0.048 : 0.012,
+          latency: isBaseline ? 28.5 : (policy === 'bandit' ? 10.2 : policy === 'q_learning' ? 7.8 : 5.9),
+          ait: isBaseline ? 28.5 : (policy === 'bandit' ? 10.2 : policy === 'q_learning' ? 7.8 : 5.9),
+          scan_efficiency: isBaseline ? 0.22 : (policy === 'bandit' ? 0.68 : policy === 'q_learning' ? 0.74 : 0.82)
+        },
         requestId: uuid('req')
       };
     },
@@ -261,6 +289,21 @@ export const mockApi = {
       return {
         success: true,
         data: ids.map(id => ({ experiment_id: id, pd: 0.8 + Math.random() * 0.15, pfa: Math.random() * 0.04 })),
+        requestId: uuid('req')
+      };
+    },
+    getFinal: async (simulationId: string) => {
+      return {
+        success: true,
+        data: {
+          simulation_id: simulationId,
+          total_steps: 2000,
+          reward_mean: 8.8,
+          pd: 0.92,
+          pfa: 0.01,
+          avg_intercept_time_ms: 6.8,
+          high_priority_detection_rate: 0.96
+        },
         requestId: uuid('req')
       };
     }
@@ -281,13 +324,61 @@ function startMockWSUpdates(simulationId: string) {
       return;
     }
 
-    // Spectrum update
-    const numBands = store.getState().activeSimulation?.bands || 16;
+    const state = store.getState();
+    const numBands = state.activeSimulation?.bands || 16;
+    const activePolicy = state.activePolicy || 'baseline';
+    const emitters = state.emitters || [];
+
+    // Real occupancy based on emitter behaviors
     const occupancy: Record<number, boolean> = {};
     for (let i = 0; i < numBands; i++) {
-      occupancy[i] = Math.random() > 0.75;
+      const emitter = emitters.find((e: any) => e.band === i);
+      if (emitter) {
+        if (emitter.behavior_class === 'fixed') {
+          occupancy[i] = true;
+        } else if (emitter.behavior_class === 'periodic') {
+          const period = Math.max(2, emitter.period || 4);
+          occupancy[i] = (step % period) === 0;
+        } else if (emitter.behavior_class === 'agile') {
+          occupancy[i] = (step % 3) === (i % 3);
+        } else {
+          occupancy[i] = Math.random() > 0.6;
+        }
+      } else {
+        occupancy[i] = false;
+      }
     }
-    const tuned = [Math.floor(Math.random() * numBands)];
+
+    // Next tuned band according strictly to policy
+    let nextBand = 0;
+    if (activePolicy === 'baseline') {
+      // BASELINE: Strict Round-Robin sequential scan (0 -> 1 -> 2 -> ... -> numBands-1 -> 0)
+      nextBand = step % numBands;
+    } else if (activePolicy === 'bandit') {
+      // BANDIT: Exploits known active channels + explores
+      if (Math.random() < 0.15 || emitters.length === 0) {
+        nextBand = (step * 3 + 1) % numBands;
+      } else {
+        const emitterBands = emitters.map((e: any) => e.band ?? 0);
+        nextBand = emitterBands[step % emitterBands.length];
+      }
+    } else if (activePolicy === 'q_learning') {
+      // Q-LEARNING: Tracks periodic/priority channels
+      const periodic = emitters.filter((e: any) => e.behavior_class === 'periodic' || (e.priority ?? 1) >= 2);
+      const candidates = periodic.length > 0 ? periodic.map((e: any) => e.band ?? 0) : emitters.map((e: any) => e.band ?? 0);
+      nextBand = candidates.length > 0 && Math.random() > 0.10
+        ? candidates[step % candidates.length]
+        : (step * 2) % numBands;
+    } else {
+      // DQN / PPO: Deep Q-learning targeting agile and top priority threats
+      const sorted = [...emitters].sort((a: any, b: any) => (b.priority ?? 1) - (a.priority ?? 1));
+      const topBands = sorted.slice(0, 3).map((e: any) => e.band ?? 0);
+      nextBand = topBands.length > 0 && Math.random() > 0.05
+        ? topBands[step % topBands.length]
+        : (step % numBands);
+    }
+
+    const tuned = [nextBand];
     
     const specEnv = {
       type: 'spectrum_update',
@@ -304,61 +395,62 @@ function startMockWSUpdates(simulationId: string) {
       tunedBands: tuned,
     });
 
-    // Decision update every 3 steps
-    if (step % 3 === 0) {
-      const isSignalPresent = occupancy[tuned[0]];
-      const stepReward = isSignalPresent ? Number((7.8 + Math.random() * 3.4).toFixed(2)) : Number((1.2 + Math.random() * 1.8).toFixed(2));
-      const decision = {
-        action: { next_band: tuned[0], dwell_time: 10 },
-        model_id: 'model_bandit_9f8e7d',
-        decision_id: uuid('dec'),
-        reward: stepReward
-      };
-      
-      const decEnv = {
-        type: 'scan_decision',
-        data: { simulation_id: simulationId, step, decision }
+    // Decision update every step
+    const isSignalPresent = occupancy[tuned[0]];
+    const stepReward = isSignalPresent 
+      ? Number((7.8 + Math.random() * 3.4).toFixed(2)) 
+      : Number((activePolicy === 'baseline' ? 0.8 : 1.5).toFixed(2));
+
+    const decision = {
+      action: { next_band: tuned[0], dwell_time: 10 },
+      model_id: activePolicy === 'baseline' ? 'baseline_round_robin' : `model_${activePolicy}_9f8e7d`,
+      decision_id: uuid('dec'),
+      reward: stepReward
+    };
+    
+    const decEnv = {
+      type: 'scan_decision',
+      data: { simulation_id: simulationId, step, decision }
+    };
+
+    if (store.getState().wsClient) {
+      store.getState().wsClient.logRawMessage(JSON.stringify(decEnv));
+    }
+
+    store.setState((prev: any) => ({
+      latestDecision: decision,
+      decisionHistory: [decision, ...prev.decisionHistory].slice(0, 50)
+    }));
+
+    // Detection event if tuned on active emitter
+    if (occupancy[tuned[0]]) {
+      const detEnv = {
+        type: 'detection_event',
+        data: { simulation_id: simulationId, step, band_id: tuned[0], detection_type: 'TP', latency_ms: Math.random() * 12 }
       };
 
       if (store.getState().wsClient) {
-        store.getState().wsClient.logRawMessage(JSON.stringify(decEnv));
+        store.getState().wsClient.logRawMessage(JSON.stringify(detEnv));
       }
 
       store.setState((prev: any) => ({
-        latestDecision: decision,
-        decisionHistory: [decision, ...prev.decisionHistory].slice(0, 50)
+        detections: [detEnv.data, ...prev.detections].slice(0, 50)
       }));
-
-      // Maybe detection event
-      if (occupancy[tuned[0]]) {
-        const detEnv = {
-          type: 'detection_event',
-          data: { simulation_id: simulationId, step, band_id: tuned[0], detection_type: 'TP', latency_ms: Math.random() * 20 }
-        };
-
-        if (store.getState().wsClient) {
-          store.getState().wsClient.logRawMessage(JSON.stringify(detEnv));
-        }
-
-        store.setState((prev: any) => ({
-          detections: [detEnv.data, ...prev.detections].slice(0, 50)
-        }));
-      }
     }
 
-    // Metrics update every 10 steps
-    if (step % 10 === 0) {
-      const isHit = occupancy[tuned[0]];
-      const liveReward = isHit ? Number((8.2 + Math.random() * 2.8).toFixed(2)) : Number((2.0 + Math.random() * 2.0).toFixed(2));
+    // Metrics update every 5 steps
+    if (step % 5 === 0) {
+      const isBaseline = activePolicy === 'baseline';
+      const liveReward = isBaseline ? 3.2 : 9.4;
       const metrics = {
         simulation_id: simulationId,
         step,
         reward: liveReward,
-        pd: 0.8 + Math.random() * 0.15,
-        pfa: Math.random() * 0.05,
-        latency: 4 + Math.random() * 8,
-        ait: 1.5 + Math.random() * 2.0,
-        scan_efficiency: 0.6 + Math.random() * 0.3
+        pd: isBaseline ? 0.492 : (activePolicy === 'bandit' ? 0.885 : activePolicy === 'q_learning' ? 0.912 : 0.941),
+        pfa: isBaseline ? 0.048 : 0.012,
+        latency: isBaseline ? 28.5 : (activePolicy === 'bandit' ? 10.2 : activePolicy === 'q_learning' ? 7.8 : 5.9),
+        ait: isBaseline ? 28.5 : (activePolicy === 'bandit' ? 10.2 : activePolicy === 'q_learning' ? 7.8 : 5.9),
+        scan_efficiency: isBaseline ? 0.22 : (activePolicy === 'bandit' ? 0.68 : activePolicy === 'q_learning' ? 0.74 : 0.82)
       };
 
       const metEnv = {
@@ -372,7 +464,7 @@ function startMockWSUpdates(simulationId: string) {
 
       store.setState({ liveMetrics: metrics });
     }
-  }, 1000);
+  }, 600);
 }
 
 function stopMockWSUpdates(simulationId: string) {
