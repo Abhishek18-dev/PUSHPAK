@@ -1,6 +1,7 @@
 """Pydantic models for API_CONTRACT.md -- Sections 1, 4 and 6.
 
-Robust, tolerant data contracts for high-speed ML decision and learning paths.
+THIS FILE IS A MIRROR, NOT A SOURCE. ``API_CONTRACT.md`` is the single source of truth and is
+copied byte-identically into all four domain folders.
 """
 
 from __future__ import annotations
@@ -38,21 +39,18 @@ def new_decision_id() -> str:
 # -- Section 1: standard envelope ----------------------------------------------------------
 
 class ErrorBody(BaseModel):
-    model_config = ConfigDict(extra="ignore")
     code: str
     message: str
     details: dict[str, Any] = Field(default_factory=dict)
 
 
 class SuccessEnvelope(BaseModel):
-    model_config = ConfigDict(extra="ignore")
     success: Literal[True] = True
     data: Any = None
     requestId: str = Field(default_factory=new_request_id)
 
 
 class ErrorEnvelope(BaseModel):
-    model_config = ConfigDict(extra="ignore")
     success: Literal[False] = False
     error: ErrorBody
     requestId: str = Field(default_factory=new_request_id)
@@ -61,20 +59,22 @@ class ErrorEnvelope(BaseModel):
 # -- Section 4: StateVector ----------------------------------------------------------------
 
 class BandState(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    """One band's ML-001 features."""
 
-    band_id: int = Field(default=0, ge=0)
-    time_since_last_scan: int = Field(default=0, ge=0)
-    recent_detection_rate_ewma: float = Field(default=0.0)
-    consecutive_misses: int = Field(default=0, ge=0)
-    periodicity_phase: float = Field(default=0.0)
-    periodicity_confidence: float = Field(default=0.0)
-    band_priority_weight: float = Field(default=1.0)
-    tuning_cost_to_band: int = Field(default=0, ge=0)
+    model_config = ConfigDict(extra="forbid")
+
+    band_id: int = Field(ge=0)
+    time_since_last_scan: int = Field(ge=0)
+    recent_detection_rate_ewma: float = Field(ge=0.0, le=1.0)
+    consecutive_misses: int = Field(ge=0)
+    periodicity_phase: float = Field(ge=0.0, le=1.0)
+    periodicity_confidence: float = Field(ge=0.0, le=1.0)
+    band_priority_weight: float = Field(ge=0.0)
+    tuning_cost_to_band: int = Field(ge=0)
 
 
 class ReceiverState(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     tuned_bands: list[int] = Field(default_factory=list)
     dwell_remaining_ms: int = Field(default=0, ge=0)
@@ -82,59 +82,53 @@ class ReceiverState(BaseModel):
 
 
 class StateVector(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
-    bands: list[BandState] = Field(default_factory=list)
+    bands: list[BandState] = Field(min_length=1)
     receiver: ReceiverState = Field(default_factory=ReceiverState)
 
 
 class Action(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
-    next_band: int = Field(default=0, ge=0)
+    next_band: int = Field(ge=0)
     dwell_time: Optional[int] = Field(default=None, ge=0)
 
 
 # -- Section 4: request/response bodies ----------------------------------------------------
 
 class DecideRequest(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
-    simulation_id: str = Field(default="sim_default")
+    simulation_id: str
     state: StateVector
-    policy: str = Field(default="bandit")
+    policy: LearningPolicy
     model_id: Optional[str] = None
 
 
 class DecideResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     action: Action
     model_id: str
     decision_id: str
 
 
 class LearnRequest(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
-    simulation_id: str = Field(default="sim_default")
-    decision_id: str = Field(default="dec_default")
+    simulation_id: str
+    decision_id: str
     state: StateVector
     action: Action
-    reward: float = Field(default=0.0)
+    reward: float
     next_state: Optional[StateVector] = None
 
 
 class LearnResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     acknowledged: bool = True
 
 
 class TrainRequest(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    algorithm: PolicyType
+    algorithm: LearningPolicy
     scenario: ScenarioId
     hyperparams: dict[str, Any] = Field(default_factory=dict)
     episode_count: Optional[int] = Field(default=None, ge=1)
@@ -142,28 +136,22 @@ class TrainRequest(BaseModel):
 
 
 class TrainResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     job_id: str
 
 
 class TrainStatusResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     status: Literal["running", "done", "failed"]
     progress: float = Field(ge=0.0, le=1.0)
     detail: dict[str, Any] = Field(default_factory=dict)
 
 
 class EvaluateRequest(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     scenario: ScenarioId
     episode_count: int = Field(default=20, ge=1)
 
 
 class ModelMetadata(BaseModel):
-    model_config = ConfigDict(protected_namespaces=(), extra="ignore")
+    model_config = ConfigDict(protected_namespaces=())
 
     model_id: str
     algorithm: PolicyType
@@ -177,6 +165,4 @@ class ModelMetadata(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     status: Literal["ok"] = "ok"

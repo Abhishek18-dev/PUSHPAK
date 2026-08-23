@@ -76,19 +76,20 @@ public class StateBuilder {
             PeriodicityClient.PeriodicityPrediction prediction = 
                     predictions.getOrDefault(bandId, PeriodicityClient.PeriodicityPrediction.DEFAULT);
 
-            // Tuning cost: how many bands away from current position
-            int tuningCost = Math.abs(bandId - currentTunedBand);
-            if (tuningCost == 0) tuningCost = 0; // Same band = no tuning cost
+            // Clamp features to contract limits [0.0, 1.0] and >= 0
+            double clampedEwma = Math.max(0.0, Math.min(1.0, ewma));
+            double clampedPhase = Math.max(0.0, Math.min(1.0, prediction.phase()));
+            double clampedConfidence = Math.max(0.0, Math.min(1.0, prediction.confidence()));
 
             Map<String, Object> bandState = new LinkedHashMap<>();
             bandState.put("band_id", bandId);
-            bandState.put("time_since_last_scan", timeSinceLastScan);
-            bandState.put("recent_detection_rate_ewma", ewma);
-            bandState.put("consecutive_misses", misses);
-            bandState.put("periodicity_phase", prediction.phase());
-            bandState.put("periodicity_confidence", prediction.confidence());
-            bandState.put("band_priority_weight", band.priorityWeight());
-            bandState.put("tuning_cost_to_band", tuningCost);
+            bandState.put("time_since_last_scan", Math.max(0L, timeSinceLastScan));
+            bandState.put("recent_detection_rate_ewma", clampedEwma);
+            bandState.put("consecutive_misses", Math.max(0, misses));
+            bandState.put("periodicity_phase", clampedPhase);
+            bandState.put("periodicity_confidence", clampedConfidence);
+            bandState.put("band_priority_weight", Math.max(0.0, band.priorityWeight()));
+            bandState.put("tuning_cost_to_band", Math.max(0, tuningCost));
 
             bandStates.add(bandState);
         }
