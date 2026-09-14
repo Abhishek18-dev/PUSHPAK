@@ -20,8 +20,13 @@ public class Scanner {
             receiver.setTuningDelayCountdownMs(config.tuningDelayMs());
         }
         
+        boolean wasTuning = receiver.getTuningDelayCountdownMs() > 0;
         receiver.setDwellRemainingMs(action.requestedDwellTimeMs().orElse(config.defaultDwellMs()));
         receiver.tick();
+        
+        if (wasTuning) {
+            return new Observation(false, List.of(), action.nextBandId());
+        }
         
         List<Signal> activeSignals = spectrum.getActiveSignals().stream()
                 .filter(s -> s.bandId() == action.nextBandId())
@@ -30,3 +35,4 @@ public class Scanner {
         return new Observation(true, activeSignals, action.nextBandId());
     }
 }
+

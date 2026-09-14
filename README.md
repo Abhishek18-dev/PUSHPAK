@@ -170,7 +170,7 @@ Empirical performance compared against traditional round-robin baseline scanners
 
 ## 6. Frontend Tactical Command Center
 
-The web client (`frontend/Frontend`) provides a modern tactical glassmorphism UI:
+The web client (`frontend`) provides a modern tactical glassmorphism UI:
 * **Command Center:** Real-time spectrum waterfall, 360° EW radar scope, and AI decision stream.
 * **Threat Genome Matrix (Bento 6):** 8/16/32-channel chromosome gene map displaying emitter class, center frequency, and priority.
 * **Spectral Chrono-Graph / Oscilloscope:** Real-time SVG signal oscillogram with dwell cursors and live $P_d$, AIT, and SNR meters.
@@ -185,7 +185,7 @@ The web client (`frontend/Frontend`) provides a modern tactical glassmorphism UI
 ```
 PUSHPAK/
 ├── README.md                                # Comprehensive Project Documentation & PRD
-├── Backend/                                 # Spring Boot 3.x Simulation Engine & System of Record
+├── backend/                                 # Spring Boot 3.x Simulation Engine & System of Record
 │   ├── .gitignore                           # Excludes target/, *.class, logs, and build artifacts
 │   ├── pom.xml                              # Maven configuration with Spring Data JPA, WS, Web
 │   ├── docker-compose.yml                   # Container definition for Backend service
@@ -198,8 +198,8 @@ PUSHPAK/
 │   │   ├── simulation/                      # Spectrum, Emitters (Fixed, Periodic, Agile, etc.)
 │   │   └── websocket/                       # Low-latency WebSocket handler & telemetry stream
 │   └── src/main/resources/application.yml   # Spring Boot configuration
-├── ai-ml-integration/
-│   ├── Ai-ml-1-Scheduler-Engine/            # Python FastAPI RL Scheduler (Port 8500)
+├── ai-ml/
+│   ├── ai-ml-1-scheduler/                   # Python FastAPI RL Scheduler (Port 8500)
 │   │   ├── Dockerfile & docker-compose.yml  # Containerization
 │   │   ├── requirements.txt & pytest.ini    # Dependencies & unit tests
 │   │   └── ml/
@@ -207,22 +207,21 @@ PUSHPAK/
 │   │       ├── api/                         # Endpoints (/internal/health, /internal/decide, /internal/train)
 │   │       ├── environments/                # Gymnasium RF Spectrum environment
 │   │       └── inference/                   # Low-latency inference runner
-│   └── Ai-ml-2-Periodicity-Estimator/       # Python FastAPI Periodicity Estimator (Port 8600)
+│   └── ai-ml-2-periodicity/                 # Python FastAPI Periodicity Estimator (Port 8600)
 │       ├── Dockerfile & docker-compose.yml  # Containerization
 │       ├── requirements.txt & pytest.ini    # Dependencies & unit tests
 │       └── periodicity/
 │           ├── api/                         # Endpoints (/internal/periodicity/update, /predict)
 │           ├── buffers/                     # Detection timestamp ring buffers
 │           └── estimator/                   # Autocorrelation & IAT statistical estimators
-└── frontend/
-    └── Frontend/                            # React 18 + TypeScript + Vite + Tailwind SPA
-        ├── .gitignore                       # Excludes node_modules/, dist/, caches
-        ├── package.json & vite.config.ts    # Frontend tooling and build scripts
-        └── src/
-            ├── components/                  # Radar, SpectrumGrid, Particles, Navbar
-            ├── pages/                       # DashBoard, PolicyComparison, Models, Scheduler
-            ├── services/api/                # Axios client to Backend REST API (Port 8080)
-            └── store/                       # Zustand simulation state store
+└── frontend/                                # React 18 + TypeScript + Vite + Tailwind SPA
+    ├── .gitignore                           # Excludes node_modules/, dist/, caches
+    ├── package.json & vite.config.ts        # Frontend tooling and build scripts
+    └── src/
+        ├── components/                      # Radar, SpectrumGrid, Particles, Navbar
+        ├── pages/                           # DashBoard, PolicyComparison, Models, Scheduler
+        ├── services/api/                    # Axios client to Backend REST API (Port 8080)
+        └── store/                           # Zustand simulation state store
 ```
 
 ---
@@ -237,7 +236,7 @@ PUSHPAK/
 
 ### Step 1: Start AI/ML Microservice 1 (Scheduler Engine)
 ```bash
-cd ai-ml-integration/Ai-ml-1-Scheduler-Engine
+cd ai-ml/ai-ml-1-scheduler
 pip install -r requirements.txt
 uvicorn ml.api.main:app --host 0.0.0.0 --port 8500 --reload
 ```
@@ -245,7 +244,7 @@ uvicorn ml.api.main:app --host 0.0.0.0 --port 8500 --reload
 
 ### Step 2: Start AI/ML Microservice 2 (Periodicity Estimator)
 ```bash
-cd ai-ml-integration/Ai-ml-2-Periodicity-Estimator
+cd ai-ml/ai-ml-2-periodicity
 pip install -r requirements.txt
 uvicorn periodicity.api.main:app --host 0.0.0.0 --port 8600 --reload
 ```
@@ -253,14 +252,14 @@ uvicorn periodicity.api.main:app --host 0.0.0.0 --port 8600 --reload
 
 ### Step 3: Start Spring Boot Backend
 ```bash
-cd Backend
+cd backend
 mvn clean spring-boot:run
 ```
 *Backend API:* `http://localhost:8080/api/v1`
 
 ### Step 4: Start Frontend SPA
 ```bash
-cd frontend/Frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -281,7 +280,7 @@ npm run dev
 ## 10. Dataset & Turing Replay Adapter
 
 PUSHPAK uses synthetic, on-the-fly mathematical signal generation to guarantee deterministic Ground Truth. For external benchmarking against real-world recorded radar datasets:
-* **Adapter Path:** `ai-ml-integration/Ai-ml-1-Scheduler-Engine/ml/data/turing_replay.py`
+* **Adapter Path:** `ai-ml/ai-ml-1-scheduler/ml/data/turing_replay.py`
 * **Supported Dataset:** *Alan Turing Institute Synthetic Radar Dataset* (`huggingface.co/datasets/alan-turing-institute/turing-synthetic-radar-dataset`).
 * **Functionality:** Ingests raw HDF5 radar pulse descriptors (Time of Arrival, Pulse Width, Center Frequency) and maps them into the $N$-band simulation environment seamlessly.
 
