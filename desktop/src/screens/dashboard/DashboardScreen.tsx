@@ -29,68 +29,23 @@ export const DashboardScreen: React.FC = () => {
     latestDecision,
     decisionHistory,
     activePolicy,
+    isScanning,
   } = state;
 
-  const [isRunning, setIsRunning] = useState(false);
-
-  // Poll live metrics while running as a backup to WebSocket broadcast
-  useEffect(() => {
-    let timer: any = null;
-    if (isRunning && activeSimulationId) {
-      timer = setInterval(async () => {
-        try {
-          const res = await apiClient.simulations.getMetrics(activeSimulationId);
-          if (res.success && res.data) {
-            store.setState({ liveMetrics: res.data });
-          }
-        } catch (e) {}
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [isRunning, activeSimulationId]);
-
   const handleStartSim = async () => {
-    let simId = activeSimulationId;
-    if (!simId) {
-      simId = await store.ensureDefaultSimulation();
-    }
-    if (!simId) return;
-
-    setIsRunning(true);
-    if (
-      activeSimulation?.status === 'completed' ||
-      (activeSimulation?.current_step ?? 0) >= (activeSimulation?.duration_steps ?? 2000)
-    ) {
-      await apiClient.simulations.reset(simId);
-    }
-    await apiClient.simulations.start(simId, activePolicy);
+    await store.startLiveScan();
   };
 
   const handleStopSim = async () => {
-    if (!activeSimulationId) return;
-    setIsRunning(false);
-    await apiClient.simulations.stop(activeSimulationId);
+    await store.stopLiveScan();
   };
 
   const handleStepSim = async () => {
-    let simId = activeSimulationId;
-    if (!simId) {
-      simId = await store.ensureDefaultSimulation();
-    }
-    if (!simId) return;
-    await apiClient.scheduler.step(simId);
-    const res = await apiClient.simulations.getMetrics(simId);
-    if (res.success && res.data) {
-      store.setState({ liveMetrics: res.data });
-    }
+    await store.stepLiveScan();
   };
 
   const handleResetSim = async () => {
-    if (!activeSimulationId) return;
-    setIsRunning(false);
-    await apiClient.simulations.reset(activeSimulationId);
+    await store.resetLiveScan();
   };
 
   // Real backend metrics
@@ -122,10 +77,10 @@ export const DashboardScreen: React.FC = () => {
         </View>
         <View style={styles.controlsRow}>
           <TouchableOpacity
-            style={[styles.btnAction, isRunning ? styles.btnStop : styles.btnStart]}
-            onPress={isRunning ? handleStopSim : handleStartSim}
+            style={[styles.btnAction, isScanning ? styles.btnStop : styles.btnStart]}
+            onPress={isScanning ? handleStopSim : handleStartSim}
           >
-            <Text style={styles.btnActionText}>{isRunning ? 'STOP SCAN' : 'START SCAN'}</Text>
+            <Text style={styles.btnActionText}>{isScanning ? 'STOP SCAN' : 'START SCAN'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.btnSecondary} onPress={handleStepSim}>
             <Text style={styles.btnSecondaryText}>STEP +1</Text>

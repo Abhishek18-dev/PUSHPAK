@@ -33,7 +33,7 @@ class DesktopWebSocketService {
             this.send({ type: 'pong' });
             return;
           }
-          this.emit(envelope.type, envelope.data);
+          this.emit(envelope.type, envelope.data as any);
         } catch (err) {
           // ignore malformed frame
         }

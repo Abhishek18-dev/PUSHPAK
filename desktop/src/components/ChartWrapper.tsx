@@ -62,7 +62,7 @@ export const ChartWrapper: React.FC<ChartWrapperProps> = ({
                   style={[
                     styles.barFill,
                     {
-                      width: `${(ratio * 100).toFixed(1)}%`,
+                      width: `${(ratio * 100).toFixed(1)}%` as any,
                       backgroundColor: barColor,
                     },
                   ]}
