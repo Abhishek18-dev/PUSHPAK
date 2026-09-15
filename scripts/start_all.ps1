@@ -40,8 +40,8 @@ if ($exePath -and (Test-Path $exePath)) {
 }
 
 Write-Host "`nAll background services and desktop application initiated successfully." -ForegroundColor Green
-Write-Host "AI-ML-1: http://127.0.0.1:8500/internal/v1/health" -ForegroundColor Cyan
-Write-Host "AI-ML-2: http://127.0.0.1:8600/internal/v1/health" -ForegroundColor Cyan
+Write-Host "AI-ML-1: http://127.0.0.1:8500/internal/health" -ForegroundColor Cyan
+Write-Host "AI-ML-2: http://127.0.0.1:8600/internal/health" -ForegroundColor Cyan
 Write-Host "Backend: http://127.0.0.1:8080/api/v1/simulations" -ForegroundColor Cyan
 Write-Host "Desktop Application (.exe): Running natively on Windows desktop (not on browser)" -ForegroundColor Green
 Write-Host "`nTo stop all background processes when done, run: .\scripts\stop_all.ps1" -ForegroundColor Yellow

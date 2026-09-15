@@ -137,6 +137,7 @@ async function launchServices() {
       if (!ml1Running) {
         const ml1 = spawn(pythonExe, ['-m', 'uvicorn', 'ml.api.main:app', '--host', '127.0.0.1', '--port', '8500'], {
           cwd: ml1Dir,
+          env: { ...process.env, PYTHONPATH: ml1Dir },
           stdio: 'ignore',
           windowsHide: true,
         });
@@ -157,6 +158,7 @@ async function launchServices() {
       if (!ml2Running) {
         const ml2 = spawn(pythonExe, ['-m', 'uvicorn', 'periodicity.api.main:app', '--host', '127.0.0.1', '--port', '8600'], {
           cwd: ml2Dir,
+          env: { ...process.env, PYTHONPATH: ml2Dir },
           stdio: 'ignore',
           windowsHide: true,
         });
