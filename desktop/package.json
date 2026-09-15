@@ -1,0 +1,83 @@
+{
+  "name": "intelligent-rf-scheduler-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Intelligent RF Spectrum Scan Strategy — Windows Desktop Application",
+  "main": "main.js",
+  "scripts": {
+    "desktop": "electron .",
+    "app": "electron .",
+    "build": "vite build",
+    "dist": "vite build && electron-builder --win",
+    "pack": "vite build && electron-builder --dir",
+    "dev": "vite",
+    "windows": "react-native run-windows",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "build": {
+    "appId": "com.drdo.rfscan.desktop",
+    "productName": "Intelligent RF Spectrum Scanner",
+    "directories": {
+      "output": "../deployment/installer"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtimes/jre",
+        "to": "runtimes/jre"
+      },
+      {
+        "from": "runtimes/python",
+        "to": "runtimes/python"
+      },
+      {
+        "from": "../Backend/target/backend-0.0.1-SNAPSHOT.jar",
+        "to": "backend/backend-0.0.1-SNAPSHOT.jar"
+      },
+      {
+        "from": "../ai-ml",
+        "to": "ai-ml",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/.pytest_cache/**",
+          "!**/.venv/**",
+          "!**/venv/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.72.6",
+    "react-native-web": "^0.19.10"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/react-native": "^0.72.8",
+    "@vitejs/plugin-react": "^4.2.0",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.7.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0"
+  }
+}

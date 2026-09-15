@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: rf-scheduler-backend-test
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  flyway:
+    enabled: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+rf:
+  security:
+    enabled: false
+    jwt-secret: default-insecure-secret-key-change-in-production-long-enough-for-hmac256
+  ml:
+    scheduler:
+      url: http://localhost:8500
+      enabled: false
+      timeout-ms: 1000
+    periodicity:
+      url: http://localhost:8600
+      enabled: false
+      timeout-ms: 1000

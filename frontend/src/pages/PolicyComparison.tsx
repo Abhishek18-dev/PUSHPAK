@@ -160,128 +160,122 @@ export const PolicyComparison: React.FC = () => {
     setIsRunningShootout(false);
   };
 
-  // Start Real-Time Benchmark Shootout
-  const handleRunShootout = () => {
+  // Start Real-Time Benchmark Shootout via Backend & Python ML Microservices
+  const handleRunShootout = async () => {
     stopShootout();
-    const newSeed = Math.floor(Math.random() * 90000) + 10000;
-    setCurrentSeed(newSeed);
-    setCurrentStep(0);
-    setWinnerPolicy(null);
-
-    const initial = initializePolicyStates(newSeed, selectedScenario);
-    setPolicyStates(initial);
     setIsRunningShootout(true);
-    toast.success(`Launched Live Shootout on Scenario ${selectedScenario} (Seed: #${newSeed})!`);
+    setWinnerPolicy(null);
+    setCurrentStep(0);
 
-    // Define scenario ground truth emitters based on scenario type
-    const emitterBands = getScenarioEmitterBands(selectedScenario, newSeed);
+    toast.info(`Dispatching multi-policy experiment to Spring Boot & AI-ML services (Scenario ${selectedScenario})...`);
 
-    let step = 0;
-    timerRef.current = setInterval(() => {
-      step += 1;
-      setCurrentStep(step);
-
-      setPolicyStates(prev => {
-        const updated = { ...prev };
-
-        selectedPolicies.forEach(p => {
-          const state = { ...updated[p] };
-          
-          // Compute policy next band decision for this step
-          const chosenBand = computeNextBand(p, state, step, emitterBands, selectedScenario, newSeed);
-          
-          // Ground truth check: is there an emitter transmitting on this band right now?
-          const isEmitting = checkEmitterActive(chosenBand, step, emitterBands, selectedScenario);
-          const isHighPriority = chosenBand === emitterBands.highPriorityBand;
-
-          state.currentBand = chosenBand;
-          state.totalScans += 1;
-          state.decisionTrail = [...state.decisionTrail.slice(-12), chosenBand];
-
-          if (isHighPriority) {
-            state.highPriorityTotal += 1;
-          }
-
-          if (isEmitting) {
-            state.detections += 1;
-            state.cumulativeReward += isHighPriority ? 15 : 10;
-            if (isHighPriority) state.highPriorityHits += 1;
-          } else {
-            state.misses += 1;
-            state.cumulativeReward -= 1;
-            // Rare false alarm noise
-            if (Math.random() < 0.03) {
-              state.falseAlarms += 1;
-            }
-          }
-
-          // Calculate realistic metrics
-          if (p === 'baseline') {
-            // Open-loop sweep misses interleaved pulses on untuned bands
-            state.pd = Math.min(0.55, Math.max(0.46, Number((0.49 + Math.sin(step / 8) * 0.03 + (state.detections / Math.max(1, state.totalScans) * 0.05)).toFixed(3))));
-            state.ait = Number((28.5 + (Math.sin(step / 10) * 2.5)).toFixed(1));
-            state.efficiency = 22;
-            state.status = 'suboptimal';
-            state.notes = `Rigid open-loop sweep: missed ~50% of transient pulses due to narrow Instantaneous Bandwidth (Pd ${(state.pd * 100).toFixed(1)}%).`;
-          } else if (p === 'bandit') {
-            state.pd = Math.min(0.91, Math.max(0.86, Number((0.885 + Math.sin(step / 14) * 0.02 + (state.detections / Math.max(1, state.totalScans) * 0.03)).toFixed(3))));
-            state.ait = Number((10.2 + (Math.sin(step / 12) * 1.1)).toFixed(1));
-            state.efficiency = 68;
-            state.status = 'optimal';
-            state.notes = `Exploration/exploitation balance locked on active channels (Pd ${(state.pd * 100).toFixed(1)}%).`;
-          } else if (p === 'q_learning') {
-            state.pd = Math.min(0.935, Math.max(0.89, Number((0.912 + Math.sin(step / 12) * 0.015 + (state.detections / Math.max(1, state.totalScans) * 0.02)).toFixed(3))));
-            state.ait = Number((7.8 + (Math.sin(step / 10) * 0.8)).toFixed(1));
-            state.efficiency = 74;
-            state.status = 'optimal';
-            state.notes = `State-action value convergence with phase-locked dwell timing (Pd ${(state.pd * 100).toFixed(1)}%).`;
-          } else if (p === 'dqn') {
-            state.pd = Math.min(0.962, Math.max(0.92, Number((0.941 + Math.sin(step / 16) * 0.012 + (state.detections / Math.max(1, state.totalScans) * 0.015)).toFixed(3))));
-            state.ait = Number((5.9 + (Math.sin(step / 15) * 0.6)).toFixed(1));
-            state.efficiency = 82;
-            state.status = 'optimal';
-            state.notes = `Deep neural Q-network successfully tracking agile frequency hops (Pd ${(state.pd * 100).toFixed(1)}%).`;
-          } else {
-            state.pd = Math.min(0.975, Math.max(0.93, Number((0.954 + Math.sin(step / 18) * 0.01 + (state.detections / Math.max(1, state.totalScans) * 0.01)).toFixed(3))));
-            state.ait = Number((4.6 + (Math.sin(step / 18) * 0.4)).toFixed(1));
-            state.efficiency = 86;
-            state.status = 'optimal';
-            state.notes = `Continuous actor-critic policy achieving maximum spectrum utilization (Pd ${(state.pd * 100).toFixed(1)}%).`;
-          }
-
-          state.pfa = Number((state.falseAlarms / Math.max(1, state.totalScans)).toFixed(3));
-          state.hpdr = state.highPriorityTotal > 0 
-            ? Number((state.highPriorityHits / state.highPriorityTotal).toFixed(2)) 
-            : 0.95;
-
-          updated[p] = state;
-        });
-
-        return updated;
+    try {
+      // 1. Create real experiment on Backend
+      const createRes = await api.experiments.create({
+        scenario: selectedScenario,
+        policies: selectedPolicies,
       });
 
-      // Complete Shootout at final step
-      if (step >= totalSteps) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (!createRes.success || !createRes.data) {
+        toast.error(`Failed to create experiment: ${createRes.error?.message || 'Unknown error'}`);
         setIsRunningShootout(false);
-
-        // Find winner policy with highest cumulative reward
-        setPolicyStates(finalStates => {
-          let highestReward = -Infinity;
-          let bestPolicy = selectedPolicies[0];
-          selectedPolicies.forEach(p => {
-            if (finalStates[p].cumulativeReward > highestReward) {
-              highestReward = finalStates[p].cumulativeReward;
-              bestPolicy = p;
-            }
-          });
-          setWinnerPolicy(finalStates[bestPolicy].name);
-          toast.success(`Shootout Complete! Winner: ${finalStates[bestPolicy].name} (+${highestReward} pts)`);
-          return finalStates;
-        });
+        return;
       }
-    }, 80); // 80ms per tick (~12 Hz live simulation animation)
+
+      const expId = (createRes.data as any).id || createRes.data;
+
+      // 2. Trigger asynchronous experiment execution
+      const runRes = await api.experiments.run(expId);
+      if (!runRes.success) {
+        toast.error(`Failed to run experiment: ${runRes.error?.message || 'Server error'}`);
+        setIsRunningShootout(false);
+        return;
+      }
+
+      toast.success(`Experiment ${expId} launched on ML Engine! Running real simulation & inference...`);
+
+      let progressStep = 0;
+      // 3. Poll backend for genuine metrics
+      timerRef.current = setInterval(async () => {
+        progressStep += 10;
+        setCurrentStep(Math.min(progressStep, totalSteps));
+
+        try {
+          const res = await api.experiments.getResults(expId);
+          if (res.success && res.data) {
+            const data: any = res.data;
+            const results: any[] = data.results || [];
+
+            setPolicyStates(prev => {
+              const updated = { ...prev };
+
+              results.forEach((runItem: any) => {
+                const pType: PolicyType = runItem.policy;
+                if (!updated[pType]) return;
+
+                const state = { ...updated[pType] };
+                const m = runItem.metrics;
+
+                if (m && Object.keys(m).length > 0) {
+                  state.totalScans = m.total_steps || m.totalSteps || state.totalScans;
+                  state.detections = m.total_tp || m.totalTp || state.detections;
+                  state.misses = m.total_fn || m.totalFn || state.misses;
+                  state.falseAlarms = m.total_fp || m.totalFp || state.falseAlarms;
+                  state.pd = typeof m.pd === 'number' ? Number(m.pd.toFixed(3)) : state.pd;
+                  state.pfa = typeof m.pfa === 'number' ? Number(m.pfa.toFixed(3)) : state.pfa;
+                  state.ait = typeof m.ait === 'number' ? Number(m.ait.toFixed(1)) : state.ait;
+                  state.hpdr = typeof m.hpdr === 'number' ? Number(m.hpdr.toFixed(3)) : state.hpdr;
+                  state.cumulativeReward = typeof m.cumulative_reward === 'number' ? Number(m.cumulative_reward.toFixed(1)) : (typeof m.cumulativeReward === 'number' ? Number(m.cumulativeReward.toFixed(1)) : state.cumulativeReward);
+                  state.efficiency = typeof m.scan_efficiency === 'number' ? Number((m.scan_efficiency * 100).toFixed(1)) : (typeof m.scanEfficiency === 'number' ? Number((m.scanEfficiency * 100).toFixed(1)) : state.efficiency);
+                  state.status = state.pd >= 0.75 ? 'optimal' : (state.pd >= 0.45 ? 'passing' : 'suboptimal');
+                  state.notes = `Genuine ML execution (Scenario ${selectedScenario}): Pd ${(state.pd * 100).toFixed(1)}%, Pfa ${(state.pfa * 100).toFixed(2)}%, Reward ${state.cumulativeReward}`;
+                }
+
+                updated[pType] = state;
+              });
+
+              return updated;
+            });
+
+            // If experiment is completed
+            if (data.status === 'completed') {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+              setIsRunningShootout(false);
+              setCurrentStep(totalSteps);
+
+              // Determine real winner policy
+              setPolicyStates(finalStates => {
+                let highestReward = -Infinity;
+                let bestPolicy = selectedPolicies[0];
+                selectedPolicies.forEach(p => {
+                  if (finalStates[p]?.cumulativeReward > highestReward) {
+                    highestReward = finalStates[p].cumulativeReward;
+                    bestPolicy = p;
+                  }
+                });
+                if (finalStates[bestPolicy]) {
+                  setWinnerPolicy(finalStates[bestPolicy].name);
+                  toast.success(`Shootout Complete! Genuine Winner: ${finalStates[bestPolicy].name} (${highestReward} reward pts)`);
+                }
+                return finalStates;
+              });
+            } else if (data.status === 'failed') {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+              setIsRunningShootout(false);
+              toast.error('Experiment run reported failure on backend.');
+            }
+          }
+        } catch (err: any) {
+          console.warn('Poll error:', err);
+        }
+      }, 700);
+
+    } catch (err: any) {
+      setIsRunningShootout(false);
+      toast.error(`Error executing shootout: ${err.message || err}`);
+    }
   };
 
   useEffect(() => {

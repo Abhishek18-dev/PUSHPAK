@@ -26,6 +26,7 @@ public class ExperimentService {
 
     private final ExperimentRepository experimentRepo;
     private final ExperimentRunRepository runRepo;
+    private final EmitterRepository emitterRepo;
     private final SimulationService simulationService;
     private final ObjectMapper objectMapper;
 
@@ -42,10 +43,12 @@ public class ExperimentService {
 
     public ExperimentService(ExperimentRepository experimentRepo,
                               ExperimentRunRepository runRepo,
+                              EmitterRepository emitterRepo,
                               SimulationService simulationService,
                               ObjectMapper objectMapper) {
         this.experimentRepo = experimentRepo;
         this.runRepo = runRepo;
+        this.emitterRepo = emitterRepo;
         this.simulationService = simulationService;
         this.objectMapper = objectMapper;
     }
@@ -115,16 +118,18 @@ public class ExperimentService {
                 // Create emitters for the scenario
                 createScenarioEmitters(sim.getId(), scenario);
 
-                // Run the simulation synchronously (we're already in @Async)
-                simulationService.start(sim.getId(), run.getPolicyType());
+                // Run the simulation synchronously without artificial UI sleep delay for high performance
+                com.rfscheduler.metrics.MetricsSummary summary = simulationService.runSimulationSync(
+                        sim.getId(), run.getPolicyType(), false);
 
-                // Wait for completion (the start method runs synchronously within @Async)
+                // Persist completed status and real metrics
                 run.setStatus("completed");
                 run.setCompletedAt(Instant.now());
+                run.setMetricsJson(objectMapper.writeValueAsString(summary));
                 runRepo.save(run);
 
-                log.info("Experiment {} run {} completed (policy={})", 
-                        experimentId, run.getId(), run.getPolicyType());
+                log.info("Experiment {} run {} completed (policy={}, pd={}, pfa={}, reward={})", 
+                        experimentId, run.getId(), run.getPolicyType(), summary.pd(), summary.pfa(), summary.cumulativeReward());
             }
 
             exp.setStatus("completed");
@@ -188,7 +193,6 @@ public class ExperimentService {
      * Create emitters for a scenario config.
      */
     private void createScenarioEmitters(String simulationId, ScenarioConfig config) {
-        int emitterIndex = 0;
         Random bandRng = new Random(42);
 
         for (Map.Entry<String, Integer> entry : config.behaviorDistribution().entrySet()) {
@@ -203,10 +207,7 @@ public class ExperimentService {
                         bandRng.nextInt(config.bands()),
                         behaviorClass.equals("periodic") ? 20 : 10,
                         1.0);
-                // NOTE: Using a field-level repository save here. In a real production system,
-                // we'd batch these inserts.
-                // For now, this is acceptable for the experiment runner.
-                emitterIndex++;
+                emitterRepo.save(emitter);
             }
         }
     }

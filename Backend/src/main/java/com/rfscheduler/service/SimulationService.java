@@ -140,10 +140,18 @@ public class SimulationService {
     }
 
     /**
-     * Start the simulation loop asynchronously.
+     * Start the simulation loop asynchronously with interactive pacing for real-time visualization.
      */
     @Async
     public void start(String id, String policyType) {
+        runSimulationSync(id, policyType, true);
+    }
+
+    /**
+     * Run the simulation synchronously and return final MetricsSummary.
+     * When interactivePacing is false, executes without sleep delays for fast benchmark experiments.
+     */
+    public MetricsSummary runSimulationSync(String id, String policyType, boolean interactivePacing) {
         SimulationEntity sim = get(id);
         sim.setStatus("running");
         simulationRepo.save(sim);
@@ -151,11 +159,12 @@ public class SimulationService {
         runningSimulations.put(id, true);
 
         try {
-            runSimulationLoop(sim, policyType != null ? policyType : "baseline");
+            return runSimulationLoop(sim, policyType != null ? policyType : "baseline", interactivePacing);
         } catch (Exception e) {
             log.error("Simulation {} failed: {}", id, e.getMessage(), e);
             sim.setStatus("failed");
             simulationRepo.save(sim);
+            throw new RuntimeException("Simulation execution failed: " + e.getMessage(), e);
         } finally {
             runningSimulations.remove(id);
         }
@@ -184,7 +193,7 @@ public class SimulationService {
     /**
      * The main simulation loop — implements the per-step logic from README.
      */
-    private void runSimulationLoop(SimulationEntity sim, String policyType) {
+    private MetricsSummary runSimulationLoop(SimulationEntity sim, String policyType, boolean interactivePacing) {
         String simId = sim.getId();
         int numBands = sim.getBands();
         int durationSteps = sim.getDurationSteps();
@@ -247,8 +256,8 @@ public class SimulationService {
             }
         }
         
-        log.info("Starting simulation loop: sim={}, policy={}, steps={}, startStep={}", 
-                simId, policyType, durationSteps, startStep);
+        log.info("Starting simulation loop: sim={}, policy={}, steps={}, startStep={}, pacing={}", 
+                simId, policyType, durationSteps, startStep, interactivePacing);
 
         for (long t = startStep + 1; t <= durationSteps; t++) {
             // Check if stopped
@@ -257,12 +266,14 @@ public class SimulationService {
                 break;
             }
 
-            // Dwell pacing: sleep 35ms per step (~30 Hz) so the UI can stream and visualize live spectrum scans and decisions
-            try {
-                Thread.sleep(35);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                break;
+            if (interactivePacing) {
+                // Dwell pacing: sleep 35ms per step (~30 Hz) so the UI can stream and visualize live spectrum scans and decisions
+                try {
+                    Thread.sleep(35);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
 
             // 1. spectrum.advance(t)
@@ -392,37 +403,39 @@ public class SimulationService {
                 }
             }
 
-            // Prepare band occupancy map
-            Map<String, Boolean> bandOccupancy = new HashMap<>();
-            for (Signal sig : spectrum.getActiveSignals()) {
-                bandOccupancy.put(String.valueOf(sig.bandId()), true);
-            }
+            if (interactivePacing) {
+                // Prepare band occupancy map
+                Map<String, Boolean> bandOccupancy = new HashMap<>();
+                for (Signal sig : spectrum.getActiveSignals()) {
+                    bandOccupancy.put(String.valueOf(sig.bandId()), true);
+                }
 
-            // Publish spectrum_update every step so UI Spectrum Analyzer follows the receiver in real time
-            pubSub.publishEvent(simId, "spectrum_update", Map.of(
-                    "band_occupancy", bandOccupancy,
-                    "tuned_bands", receiver.getTunedBands()));
+                // Publish spectrum_update every step so UI Spectrum Analyzer follows the receiver in real time
+                pubSub.publishEvent(simId, "spectrum_update", Map.of(
+                        "band_occupancy", bandOccupancy,
+                        "tuned_bands", receiver.getTunedBands()));
 
-            // Publish metrics every 5 steps
-            if (t % 5 == 0) {
-                Map<String, Object> metricsPayload = Map.of(
+                // Publish metrics every 5 steps
+                if (t % 5 == 0) {
+                    Map<String, Object> metricsPayload = Map.of(
+                            "step", t,
+                            "reward", reward,
+                            "pd", metricsEngine.getSummary().pd(),
+                            "pfa", metricsEngine.getSummary().pfa(),
+                            "ait", metricsEngine.getSummary().ait(),
+                            "scan_efficiency", metricsEngine.getSummary().scanEfficiency());
+
+                    latestMetrics.put(simId, metricsPayload);
+                    pubSub.publishEvent(simId, "metrics_update", metricsPayload);
+                }
+
+                // Publish scan decision event
+                pubSub.publishEvent(simId, "scan_decision", Map.of(
                         "step", t,
-                        "reward", reward,
-                        "pd", metricsEngine.getSummary().pd(),
-                        "pfa", metricsEngine.getSummary().pfa(),
-                        "ait", metricsEngine.getSummary().ait(),
-                        "scan_efficiency", metricsEngine.getSummary().scanEfficiency());
-
-                latestMetrics.put(simId, metricsPayload);
-                pubSub.publishEvent(simId, "metrics_update", metricsPayload);
+                        "band", action.nextBandId(),
+                        "policy", policyType,
+                        "detection", detType.name()));
             }
-
-            // Publish scan decision event
-            pubSub.publishEvent(simId, "scan_decision", Map.of(
-                    "step", t,
-                    "band", action.nextBandId(),
-                    "policy", policyType,
-                    "detection", detType.name()));
         }
 
         // Final save
@@ -434,12 +447,16 @@ public class SimulationService {
         log.info("Simulation {} completed — Pd={}, Pfa={}, reward={}", 
                 simId, summary.pd(), summary.pfa(), summary.cumulativeReward());
 
-        // Publish completion event
-        pubSub.publishEvent(simId, "simulation_complete", Map.of(
-                "pd", summary.pd(),
-                "pfa", summary.pfa(),
-                "cumulative_reward", summary.cumulativeReward(),
-                "total_steps", summary.totalSteps()));
+        if (interactivePacing) {
+            // Publish completion event
+            pubSub.publishEvent(simId, "simulation_complete", Map.of(
+                    "pd", summary.pd(),
+                    "pfa", summary.pfa(),
+                    "cumulative_reward", summary.cumulativeReward(),
+                    "total_steps", summary.totalSteps()));
+        }
+
+        return summary;
     }
 
     /**

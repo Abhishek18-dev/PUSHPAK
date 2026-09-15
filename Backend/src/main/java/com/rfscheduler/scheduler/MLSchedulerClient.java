@@ -142,9 +142,10 @@ public class MLSchedulerClient {
                 }
             }
         } catch (RestClientException e) {
-            log.warn("ML train failed: {}", e.getMessage());
+            log.error("ML train failed: {}", e.getMessage());
+            throw new IllegalStateException("AI-ML-1 Scheduler service is unreachable: " + e.getMessage(), e);
         }
-        return "job_mock_" + System.currentTimeMillis();
+        throw new IllegalStateException("AI-ML-1 Scheduler did not return a valid job ID");
     }
 
     /**

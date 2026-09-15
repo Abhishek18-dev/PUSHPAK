@@ -108,9 +108,9 @@ public class SimulationWebSocketHandler extends TextWebSocketHandler {
     }
 
     public void broadcastToSimulation(String simulationId, String jsonPayload) {
+        TextMessage msg = new TextMessage(jsonPayload);
         List<WebSocketSession> sessions = activeSessions.get(simulationId);
         if (sessions != null) {
-            TextMessage msg = new TextMessage(jsonPayload);
             sessions.removeIf(session -> {
                 if (!session.isOpen()) return true;
                 try {
@@ -122,33 +122,53 @@ public class SimulationWebSocketHandler extends TextWebSocketHandler {
                 }
             });
         }
+
+        // Also broadcast to global workstation sessions connected to /ws
+        if (!"ws".equals(simulationId)) {
+            List<WebSocketSession> globalSessions = activeSessions.get("ws");
+            if (globalSessions != null) {
+                globalSessions.removeIf(session -> {
+                    if (!session.isOpen()) return true;
+                    try {
+                        sendSafe(session, msg);
+                        return false;
+                    } catch (IOException e) {
+                        return true;
+                    }
+                });
+            }
+        }
     }
 
     public void checkHeartbeats() {
         long now = System.currentTimeMillis();
+        List<WebSocketSession> timedOutSessions = new java.util.ArrayList<>();
+
         activeSessions.values().forEach(list -> {
-            list.removeIf(session -> {
-                if (!session.isOpen()) return true;
+            for (WebSocketSession session : list) {
+                if (!session.isOpen()) continue;
                 Long lastPong = (Long) session.getAttributes().get("lastPong");
-                // Allow 25s grace period (instead of 10s) to be more forgiving
-                if (lastPong != null && now - lastPong > 25000) {
-                    String simId = (String) session.getAttributes().get("simulationId");
-                    log.warn("Heartbeat timeout — closing session={}, simulationId={}, lastPong={}ms ago",
-                            session.getId(), simId, now - lastPong);
+                if (lastPong == null) {
+                    session.getAttributes().put("lastPong", now);
+                    lastPong = now;
+                }
+                if (now - lastPong > 60000) {
+                    timedOutSessions.add(session);
+                } else {
                     try {
-                        session.close(CloseStatus.SESSION_NOT_RELIABLE);
-                    } catch (IOException ignored) {}
-                    return true;
+                        sendSafe(session, new TextMessage(mapper.writeValueAsString(Map.of("type", "ping"))));
+                    } catch (IOException e) {
+                        timedOutSessions.add(session);
+                    }
                 }
-                try {
-                    sendSafe(session, new TextMessage(mapper.writeValueAsString(Map.of("type", "ping"))));
-                } catch (IOException e) {
-                    log.warn("Failed to send ping to session={} — removing", session.getId());
-                    return true;
-                }
-                return false;
-            });
+            }
         });
+
+        for (WebSocketSession session : timedOutSessions) {
+            try {
+                session.close(CloseStatus.SESSION_NOT_RELIABLE);
+            } catch (IOException ignored) {}
+        }
     }
 
     /**

@@ -41,8 +41,7 @@ public class ModelController {
 
         String jobId = mlClient.train(request.algorithm(), request.scenario(), 
                 request.hyperparams(), request.episodeCount(), new int[]{1, 20});
-        String safeJobId = (jobId != null && !jobId.isBlank()) ? jobId : "job_mock_" + System.currentTimeMillis();
-        return ResponseEntity.ok(BaseResponse.success(Map.of("job_id", safeJobId), reqId()));
+        return ResponseEntity.ok(BaseResponse.success(Map.of("job_id", jobId), reqId()));
     }
 
     @GetMapping("/train/{jobId}/status")

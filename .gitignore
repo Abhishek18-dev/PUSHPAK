@@ -87,3 +87,14 @@ runs/
 *.h5
 ai-ml/ai-ml-1-scheduler/ml/checkpoints/*
 !ai-ml/ai-ml-1-scheduler/ml/checkpoints/.gitkeep
+
+# Database & Runtime files
+Backend/data/*.db
+*.mv.db
+*.trace.db
+
+# Deployments & Generated Installers
+deployment/installer/
+deployment/release/
+desktop/runtimes/
+

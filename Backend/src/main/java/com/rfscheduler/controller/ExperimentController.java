@@ -77,4 +77,10 @@ public class ExperimentController {
         Map<String, Object> results = experimentService.getResults(id);
         return ResponseEntity.ok(BaseResponse.success(results, reqId()));
     }
+
+    @GetMapping("/{id}/comparison")
+    public ResponseEntity<BaseResponse<Map<String, Object>>> getComparison(@PathVariable String id) {
+        Map<String, Object> results = experimentService.getResults(id);
+        return ResponseEntity.ok(BaseResponse.success(results, reqId()));
+    }
 }

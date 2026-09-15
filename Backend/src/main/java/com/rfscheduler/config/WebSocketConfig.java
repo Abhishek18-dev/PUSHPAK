@@ -44,7 +44,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, "/ws/v1/simulations/**")
+        registry.addHandler(handler, "/ws/v1/simulations/**", "/ws", "/ws/**")
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(new HandshakeInterceptor() {
                     @Override
