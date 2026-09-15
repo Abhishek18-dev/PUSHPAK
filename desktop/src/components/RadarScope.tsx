@@ -19,39 +19,67 @@ export const RadarScope: React.FC<RadarScopeProps> = ({
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setSweepAngle((prev) => (prev + 4) % 360);
-    }, 40);
+      setSweepAngle((prev) => (prev + 3) % 360);
+    }, 33);
     return () => clearInterval(timer);
   }, []);
 
   const center = size / 2;
-  const radius = size / 2 - 10;
+  const radius = size / 2 - 12;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
       {/* Concentric rings */}
-      <View style={[styles.ring, { width: size - 20, height: size - 20, borderRadius: (size - 20) / 2 }]} />
-      <View style={[styles.ring, { width: (size - 20) * 0.7, height: (size - 20) * 0.7, borderRadius: ((size - 20) * 0.7) / 2 }]} />
-      <View style={[styles.ring, { width: (size - 20) * 0.4, height: (size - 20) * 0.4, borderRadius: ((size - 20) * 0.4) / 2 }]} />
+      <View style={[styles.ring, { width: radius * 2, height: radius * 2, borderRadius: radius }]} />
+      <View style={[styles.ring, { width: radius * 1.4, height: radius * 1.4, borderRadius: radius * 0.7 }]} />
+      <View style={[styles.ring, { width: radius * 0.8, height: radius * 0.8, borderRadius: radius * 0.4 }]} />
 
       {/* Crosshairs */}
-      <View style={[styles.crosshairH, { width: size - 20 }]} />
-      <View style={[styles.crosshairV, { height: size - 20 }]} />
+      <View style={[styles.crosshairH, { width: radius * 2 }]} />
+      <View style={[styles.crosshairV, { height: radius * 2 }]} />
 
-      {/* Radar Sweep Line */}
+      {/* Center-Pinned Rotating Radar Antenna Beam & Sector */}
       <View
         style={[
-          styles.sweepLine,
+          styles.pivotContainer,
           {
-            width: radius,
-            transform: [
-              { translateX: radius / 2 },
-              { rotate: `${sweepAngle}deg` },
-              { translateX: -radius / 2 },
-            ],
+            top: center,
+            left: center,
+            transform: [{ rotate: `${sweepAngle}deg` }],
           },
         ]}
-      />
+      >
+        {/* Phosphor sweep tail gradient */}
+        <View
+          style={[
+            styles.sweepTail,
+            {
+              width: radius,
+              height: radius,
+              top: -radius,
+              left: 0,
+            },
+          ]}
+        />
+        {/* Main Radar Beam Line */}
+        <View
+          style={[
+            styles.antennaBeam,
+            {
+              width: radius,
+            },
+          ]}
+        />
+        {/* Antenna Beam Tip */}
+        <View
+          style={[
+            styles.beamTip,
+            {
+              left: radius - 4,
+            },
+          ]}
+        />
+      </View>
 
       {/* Target Pings mapped across bands */}
       {Array.from({ length: totalBands }).map((_, bandIdx) => {
@@ -89,23 +117,24 @@ export const RadarScope: React.FC<RadarScopeProps> = ({
       })}
 
       {/* Bearing markings */}
-      <Text style={[styles.bearingText, { top: 4, left: center - 6 }]}>N</Text>
-      <Text style={[styles.bearingText, { bottom: 4, left: center - 6 }]}>S</Text>
+      <Text style={[styles.bearingText, { top: 4, left: center - 5 }]}>N</Text>
+      <Text style={[styles.bearingText, { bottom: 4, left: center - 5 }]}>S</Text>
       <Text style={[styles.bearingText, { right: 4, top: center - 6 }]}>E</Text>
       <Text style={[styles.bearingText, { left: 4, top: center - 6 }]}>W</Text>
 
-      {/* Center Reticle */}
-      <View style={styles.centerDot} />
+      {/* Center Reticle Origin Dot */}
+      <View style={[styles.centerDot, { top: center - 4, left: center - 4 }]} />
+      <View style={[styles.centerRing, { top: center - 8, left: center - 8 }]} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(2, 10, 5, 0.95)',
+    backgroundColor: '#030d07',
     borderRadius: borderRadius.full,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: 'rgba(34, 197, 94, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -127,14 +156,45 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: 'rgba(34, 197, 94, 0.25)',
   },
-  sweepLine: {
+  pivotContainer: {
     position: 'absolute',
+    width: 0,
+    height: 0,
+    zIndex: 5,
+  },
+  antennaBeam: {
+    position: 'absolute',
+    top: -1,
+    left: 0,
     height: 2,
-    backgroundColor: 'rgba(74, 222, 128, 0.8)',
+    backgroundColor: '#4ade80',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
+    shadowOpacity: 1,
+    shadowRadius: 6,
+  },
+  beamTip: {
+    position: 'absolute',
+    top: -3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#86efac',
+    shadowColor: '#86efac',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
     shadowRadius: 8,
+  },
+  sweepTail: {
+    position: 'absolute',
+    borderBottomLeftRadius: 140,
+    opacity: 0.25,
+    // Web conic gradient tail
+    ...(StyleSheet.create({
+      gradient: {
+        background: 'conic-gradient(from 180deg at 0% 100%, rgba(74, 222, 128, 0.35) 0deg, transparent 40deg)',
+      } as any,
+    }).gradient),
   },
   targetPoint: {
     position: 'absolute',
@@ -143,6 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
   },
   pulseRing: {
     position: 'absolute',
@@ -158,11 +219,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.primary,
     fontFamily: typography.fontFamilyTactical,
+    zIndex: 15,
   },
   centerDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary,
+    zIndex: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+  },
+  centerRing: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    zIndex: 19,
+    opacity: 0.6,
   },
 });

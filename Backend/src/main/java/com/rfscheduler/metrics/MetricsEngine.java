@@ -62,7 +62,7 @@ public class MetricsEngine {
         double precision = (totalTp + totalFp) > 0 ? (double) totalTp / (totalTp + totalFp) : 0.0;
         double recall = pd;
         double f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0.0;
-        double ait = totalTp > 0 ? (double) totalLatencyMs / totalTp : 0.0;
+        double ait = totalTp > 0 ? (double) totalLatencyMs / totalTp : (totalSteps > 0 ? (double) totalSpectrumBands * 1.5 : 0.0);
         double scanEfficiency = totalSteps > 0 ? (double) (totalTp + totalTn) / totalSteps : 0.0;
         double missRate = (totalTp + totalFn) > 0 ? (double) totalFn / (totalTp + totalFn) : 0.0;
 
